@@ -1,0 +1,34 @@
+name: Aviso semanal de cobranza
+
+on:
+  schedule:
+    # Lunes 08:00 hora de Chile continental.
+    # Chile usa horario de verano parte del año (UTC-3) y de invierno (UTC-4);
+    # 11:00 UTC cae 08:00 en horario de verano y 07:00 en horario de invierno.
+    # Ajusta la hora si te importa la precisión exacta en invierno.
+    - cron: "0 11 * * 1"
+  workflow_dispatch: {}   # permite correrlo manualmente desde la pestaña Actions
+
+jobs:
+  revisar-vencidas:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clonar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Revisar facturas vencidas y enviar correo si corresponde
+        env:
+          SMTP_HOST: smtp.gmail.com
+          SMTP_PORT: "587"
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+          PLAZO_DIAS: "30"
+          FACTURAS_PATH: facturas.json
+          DASHBOARD_URL: ${{ vars.DASHBOARD_URL }}
+        run: python scripts/check_vencidas.py
