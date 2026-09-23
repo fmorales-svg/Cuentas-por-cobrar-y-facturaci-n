@@ -20,15 +20,20 @@ FACTURAS_PATH = os.environ.get("FACTURAS_PATH", "facturas.json")
 DASHBOARD_URL = os.environ.get("DASHBOARD_URL", "")
 
 def clean_env(name, default=None):
-    """Reads an env var and strips ANY stray newline/carriage-return,
-    wherever it sits in the value (start, middle, or end), plus outer
-    whitespace. GitHub secrets pasted with a trailing or embedded enter
-    are a common cause of 'folded header contains newline' when building
-    the email — this makes that class of typo harmless."""
+    """Reads an env var and strips ANY control/whitespace-like character
+    wherever it sits in the value (start, middle, or end) — not just
+    plain \\r\\n, but also stray tabs, non-breaking spaces, zero-width
+    characters, etc. that a copy-paste from Word/Notes/WhatsApp can leave
+    behind. GitHub secrets pasted that way are a common cause of
+    'folded header contains newline' when building the email — this
+    makes that whole class of typo harmless."""
     value = os.environ.get(name, default)
     if not isinstance(value, str):
         return value
-    return re.sub(r"[\r\n]+", "", value).strip()
+    # Drop ASCII control chars (incl. \r, \n, \t) and common invisible
+    # unicode whitespace (NBSP, zero-width space/joiner, BOM), then trim.
+    value = re.sub(r"[\x00-\x1f\x7f ​‌‍﻿]", "", value)
+    return value.strip()
 
 
 SMTP_HOST = clean_env("SMTP_HOST", "smtp.gmail.com")
@@ -57,6 +62,9 @@ def main():
     if not SMTP_USER or not SMTP_PASS:
         print("Faltan SMTP_USER / SMTP_PASS (configura los secrets del repo).", file=sys.stderr)
         sys.exit(1)
+
+    print("Diagnostico (sin mostrar valores reales): "
+          "SMTP_USER largo=%d, EMAIL_TO largo=%d" % (len(SMTP_USER), len(EMAIL_TO)))
 
     with open(FACTURAS_PATH, "r", encoding="utf-8") as fh:
         facturas = json.load(fh)
