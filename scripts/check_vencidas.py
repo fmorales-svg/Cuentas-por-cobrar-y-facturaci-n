@@ -18,11 +18,19 @@ PLAZO_DIAS = int(os.environ.get("PLAZO_DIAS", "30"))
 FACTURAS_PATH = os.environ.get("FACTURAS_PATH", "facturas.json")
 DASHBOARD_URL = os.environ.get("DASHBOARD_URL", "")
 
-SMTP_HOST = os.environ.get("SMTP_HOST", "smtp.gmail.com")
-SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
-SMTP_USER = os.environ.get("SMTP_USER")
-SMTP_PASS = os.environ.get("SMTP_PASS")
-EMAIL_TO = os.environ.get("EMAIL_TO", SMTP_USER)
+def clean_env(name, default=None):
+    """Reads an env var and strips stray whitespace/newlines (a common
+    copy-paste issue when saving GitHub secrets, which otherwise breaks
+    email headers with 'folded header contains newline')."""
+    value = os.environ.get(name, default)
+    return value.strip() if isinstance(value, str) else value
+
+
+SMTP_HOST = clean_env("SMTP_HOST", "smtp.gmail.com")
+SMTP_PORT = int(clean_env("SMTP_PORT", "587"))
+SMTP_USER = clean_env("SMTP_USER")
+SMTP_PASS = clean_env("SMTP_PASS")
+EMAIL_TO = clean_env("EMAIL_TO", SMTP_USER)
 
 
 def parse_date(value):
