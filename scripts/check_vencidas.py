@@ -9,6 +9,7 @@ Pensado para correr desde GitHub Actions cada lunes (ver
 
 import json
 import os
+import re
 import smtplib
 import sys
 from datetime import datetime, date
@@ -19,11 +20,15 @@ FACTURAS_PATH = os.environ.get("FACTURAS_PATH", "facturas.json")
 DASHBOARD_URL = os.environ.get("DASHBOARD_URL", "")
 
 def clean_env(name, default=None):
-    """Reads an env var and strips stray whitespace/newlines (a common
-    copy-paste issue when saving GitHub secrets, which otherwise breaks
-    email headers with 'folded header contains newline')."""
+    """Reads an env var and strips ANY stray newline/carriage-return,
+    wherever it sits in the value (start, middle, or end), plus outer
+    whitespace. GitHub secrets pasted with a trailing or embedded enter
+    are a common cause of 'folded header contains newline' when building
+    the email — this makes that class of typo harmless."""
     value = os.environ.get(name, default)
-    return value.strip() if isinstance(value, str) else value
+    if not isinstance(value, str):
+        return value
+    return re.sub(r"[\r\n]+", "", value).strip()
 
 
 SMTP_HOST = clean_env("SMTP_HOST", "smtp.gmail.com")
