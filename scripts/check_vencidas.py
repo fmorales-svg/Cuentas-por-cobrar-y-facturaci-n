@@ -19,6 +19,7 @@ PLAZO_DIAS = int(os.environ.get("PLAZO_DIAS", "30"))
 FACTURAS_PATH = os.environ.get("FACTURAS_PATH", "facturas.json")
 DASHBOARD_URL = os.environ.get("DASHBOARD_URL", "")
 
+
 def clean_env(name, default=None):
     """Reads an env var and strips ANY control/whitespace-like character
     wherever it sits in the value (start, middle, or end) — not just
@@ -32,7 +33,7 @@ def clean_env(name, default=None):
         return value
     # Drop ASCII control chars (incl. \r, \n, \t) and common invisible
     # unicode whitespace (NBSP, zero-width space/joiner, BOM), then trim.
-    value = re.sub(r"[\x00-\x1f\x7f ​‌‍﻿]", "", value)
+    value = re.sub(r"[\x00-\x1f\x7f\u00a0\u200b\u200c\u200d\ufeff]", "", value)
     return value.strip()
 
 
@@ -117,19 +118,28 @@ def main():
         link=("Dashboard: " + DASHBOARD_URL) if DASHBOARD_URL else "",
     )
 
+    # EMAIL_TO may list several addresses separated by commas — split them
+    # into a real list for SMTP (a comma-joined single string is not a
+    # valid single recipient) and show the human-friendly joined form in
+    # the "To" header.
+    destinatarios = [addr.strip() for addr in EMAIL_TO.split(",") if addr.strip()]
+    if not destinatarios:
+        print("EMAIL_TO esta vacio despues de limpiarlo.", file=sys.stderr)
+        sys.exit(1)
+
     msg = MIMEText(cuerpo, "plain", "utf-8")
     msg["Subject"] = "Cobranza DMZ: {n} factura(s) vencida(s) ({total})".format(
         n=len(vencidas), total=fmt_clp(total_vencido)
     )
     msg["From"] = SMTP_USER
-    msg["To"] = EMAIL_TO
+    msg["To"] = ", ".join(destinatarios)
 
     with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
         server.starttls()
         server.login(SMTP_USER, SMTP_PASS)
-        server.sendmail(SMTP_USER, [EMAIL_TO], msg.as_string())
+        server.sendmail(SMTP_USER, destinatarios, msg.as_string())
 
-    print("Correo enviado a %s con %d factura(s) vencida(s)." % (EMAIL_TO, len(vencidas)))
+    print("Correo enviado a %d destinatario(s) con %d factura(s) vencida(s)." % (len(destinatarios), len(vencidas)))
 
 
 if __name__ == "__main__":
