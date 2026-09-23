@@ -19,7 +19,6 @@ PLAZO_DIAS = int(os.environ.get("PLAZO_DIAS", "30"))
 FACTURAS_PATH = os.environ.get("FACTURAS_PATH", "facturas.json")
 DASHBOARD_URL = os.environ.get("DASHBOARD_URL", "")
 
-
 def clean_env(name, default=None):
     """Reads an env var and strips ANY control/whitespace-like character
     wherever it sits in the value (start, middle, or end) — not just
@@ -33,7 +32,7 @@ def clean_env(name, default=None):
         return value
     # Drop ASCII control chars (incl. \r, \n, \t) and common invisible
     # unicode whitespace (NBSP, zero-width space/joiner, BOM), then trim.
-    value = re.sub(r"[\x00-\x1f\x7f\u00a0\u200b\u200c\u200d\ufeff]", "", value)
+    value = re.sub(r"[\x00-\x1f\x7f ​‌‍﻿]", "", value)
     return value.strip()
 
 
@@ -58,6 +57,19 @@ def parse_date(value):
 def fmt_clp(n):
     return "$" + format(round(n), ",").replace(",", ".")
 
+def saldo_de(f):
+    """Outstanding balance: full total once marked pagada, otherwise total
+    minus whatever partial amount (montoPagado) has been registered."""
+    total = f.get("total", 0) or 0
+    if f.get("pagada"):
+        return 0
+    pagado = f.get("montoPagado", 0) or 0
+    if pagado < 0:
+        pagado = 0
+    if pagado > total:
+        pagado = total
+    return max(0, total - pagado)
+
 
 def main():
     if not SMTP_USER or not SMTP_PASS:
@@ -73,7 +85,8 @@ def main():
     hoy = date.today()
     vencidas = []
     for f in facturas:
-        if f.get("pagada"):
+        saldo = saldo_de(f)
+        if saldo <= 0:
             continue
         try:
             emision = parse_date(str(f.get("emision", "")))
@@ -83,6 +96,7 @@ def main():
         if dias_transcurridos > PLAZO_DIAS:
             f = dict(f)
             f["diasVencida"] = dias_transcurridos - PLAZO_DIAS
+            f["saldo"] = saldo
             vencidas.append(f)
 
     if not vencidas:
@@ -90,14 +104,15 @@ def main():
         return
 
     vencidas.sort(key=lambda f: -f["diasVencida"])
-    total_vencido = sum(f.get("total", 0) for f in vencidas)
+    total_vencido = sum(f["saldo"] for f in vencidas)
 
     filas = "\n".join(
-        "  - Folio {folio} · {razon} · {rut} · {total} · vencida hace {dias} dia(s)".format(
+        "  - Folio {folio} · {razon} · {rut} · saldo {saldo}{parcial} · vencida hace {dias} dia(s)".format(
             folio=f.get("folio"),
             razon=f.get("razonSocial", ""),
             rut=f.get("rut", ""),
-            total=fmt_clp(f.get("total", 0)),
+            saldo=fmt_clp(f["saldo"]),
+            parcial=" (pago parcial registrado)" if 0 < (f.get("montoPagado", 0) or 0) < f.get("total", 0) else "",
             dias=f["diasVencida"],
         )
         for f in vencidas
