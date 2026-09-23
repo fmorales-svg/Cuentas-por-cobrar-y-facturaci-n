@@ -626,7 +626,14 @@
   .btn.tiny{ padding: 4px 9px; font-size: 11px; border-radius: 6px; }
 
   .global-search-wrap{ position: relative; }
-  .global-search-wrap .search{ width: 260px; }
+  .global-search-wrap .search{
+    width: 300px; max-width: 100%;
+    background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23009BB4' stroke-width='2.4' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cline x1='21' y1='21' x2='16.5' y2='16.5'/%3E%3C/svg%3E") no-repeat 12px center;
+    padding-left: 36px;
+    border: 1.5px solid var(--accent);
+    box-shadow: 0 2px 10px -4px rgba(0,155,180,0.35);
+  }
+  @media (max-width: 600px){ .global-search-wrap{ flex: 1 1 100%; } .global-search-wrap .search{ width: 100%; } }
   .global-search-results{
     position: absolute; top: calc(100% + 6px); left: 0; width: 340px; max-height: 360px; overflow-y: auto;
     background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); z-index: 40;
@@ -878,9 +885,10 @@
     </div>
     <div class="actions">
       <div class="global-search-wrap">
-        <input class="search" id="global-search" type="search" placeholder="Buscar en todo (folio, cliente, RUT)… ( / )" aria-label="Buscar en todo el dashboard">
+        <input class="search" id="global-search" type="search" placeholder="Buscar folio, cliente o RUT…" aria-label="Buscar en todo el dashboard">
         <div id="global-search-results" class="global-search-results" hidden></div>
       </div>
+      <button class="btn ghost small" id="theme-btn" type="button" title="Cambiar fondo: automático (según el dispositivo), oscuro o claro">🌗 Auto</button>
       <button class="btn ghost small" id="density-btn" type="button" title="Alternar entre vista normal y compacta de las tablas">↕ Compacto</button>
       <button class="btn ghost small" id="print-pdf-btn" type="button" title="Exportar todo el dashboard a PDF (usa Imprimir → Guardar como PDF)">🖨 Exportar PDF</button>
       <div class="bell-wrap">
@@ -3145,13 +3153,16 @@
   }
 
   function buildFacturasJSON(){
+    // Keep every stored field (responsable, concepto, anulada, rechazada, tipoDoc, …)
+    // so publishing to GitHub never strips data added after the original schema.
     var out = state.invoices.map(function(f){
-      return {
-        folio: f.folio, razonSocial: f.razonSocial, rut: f.rut,
-        neto: f.neto, iva: f.iva, total: f.total,
-        emision: f.emision, vencimiento: f.vencimiento,
-        pagada: !!f.pagada, montoPagado: montoPagadoDe(f)
-      };
+      var o = {};
+      Object.keys(f).forEach(function(k){
+        if (k.charAt(0) !== "_" && typeof f[k] !== "function") o[k] = f[k];
+      });
+      o.pagada = !!f.pagada;
+      o.montoPagado = montoPagadoDe(f);
+      return o;
     });
     return JSON.stringify(out, null, 2);
   }
@@ -3904,6 +3915,27 @@
   });
 
   // --- Modo compacto -------------------------------------------------------
+  // Theme: "auto" follows the device; "dark"/"light" force it. Saved per browser.
+  var THEME_KEY = "dmz_theme";
+  var THEME_LABEL = { auto: "🌗 Auto", dark: "🌙 Oscuro", light: "☀️ Claro" };
+  function loadTheme(){
+    try { var t = localStorage.getItem(THEME_KEY); return THEME_LABEL[t] ? t : "auto"; }
+    catch(e){ return "auto"; }
+  }
+  function applyTheme(t){
+    if (t === "auto") document.documentElement.removeAttribute("data-theme");
+    else document.documentElement.setAttribute("data-theme", t);
+    document.getElementById("theme-btn").textContent = THEME_LABEL[t];
+  }
+  var themeMode = loadTheme();
+  applyTheme(themeMode);
+  document.getElementById("theme-btn").addEventListener("click", function(){
+    themeMode = themeMode === "auto" ? "dark" : (themeMode === "dark" ? "light" : "auto");
+    try { localStorage.setItem(THEME_KEY, themeMode); } catch(e){}
+    applyTheme(themeMode);
+    try { renderAll(); } catch(e){}
+  });
+
   function applyCompactMode(on){
     document.body.classList.toggle("compact-mode", on);
     document.getElementById("density-btn").textContent = on ? "↕ Normal" : "↕ Compacto";
