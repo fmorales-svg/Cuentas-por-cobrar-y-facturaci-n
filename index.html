@@ -2,21 +2,22 @@
 <meta name="description" content="Dashboard de facturación y cobranzas con notificaciones de vencimiento, vistas de cobranza, clientes y reportes, listo para cargar datos reales.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <style>
   :root{
     color-scheme: light;
     --page: #f0efe9;
     --surface: #ffffff;
     --surface-2: #f7f6f1;
-    --text-primary: #14140f;
+    --text-primary: #111111;
     --text-secondary: #55534a;
-    --muted: #8b887c;
+    --muted: #7F8C8D;
     --gridline: #e6e3d8;
-    --border: rgba(20,20,15,0.09);
-    --accent: #1c5cab;
-    --accent-soft: #dce8f8;
-    --accent-strong: #104281;
+    --border: rgba(17,17,17,0.09);
+    --accent: #009BB4;
+    --accent-soft: #dbf1f5;
+    --accent-strong: #007690;
     --good: #0ca30c;
     --good-soft: #e3f6e3;
     --warning: #c98500;
@@ -24,8 +25,8 @@
     --critical: #d03b3b;
     --critical-soft: #fbe4e4;
     --shadow: 0 1px 2px rgba(20,20,15,0.04), 0 8px 24px -12px rgba(20,20,15,0.14);
-    --sidebar-bg: #14161c;
-    --sidebar-bg-2: #1b1e26;
+    --sidebar-bg: #111111;
+    --sidebar-bg-2: #1b1b1b;
     --sidebar-text: #c9cad2;
     --sidebar-text-dim: #7d8090;
     --sidebar-active: #ffffff;
@@ -39,12 +40,12 @@
       --surface-2: #1c1c14;
       --text-primary: #f6f5f0;
       --text-secondary: #c3c0b2;
-      --muted: #8f8c7d;
+      --muted: #9aa5a6;
       --gridline: #302f27;
       --border: rgba(255,255,255,0.10);
-      --accent: #3987e5;
-      --accent-soft: #1a3252;
-      --accent-strong: #86b6ef;
+      --accent: #1ec4de;
+      --accent-soft: #123840;
+      --accent-strong: #6fdcee;
       --good: #29c229;
       --good-soft: #123317;
       --warning: #e0a63a;
@@ -61,12 +62,12 @@
     --surface-2: #1c1c14;
     --text-primary: #f6f5f0;
     --text-secondary: #c3c0b2;
-    --muted: #8f8c7d;
+    --muted: #9aa5a6;
     --gridline: #302f27;
     --border: rgba(255,255,255,0.10);
-    --accent: #3987e5;
-    --accent-soft: #1a3252;
-    --accent-strong: #86b6ef;
+    --accent: #1ec4de;
+    --accent-soft: #123840;
+    --accent-strong: #6fdcee;
     --good: #29c229;
     --good-soft: #123317;
     --warning: #e0a63a;
@@ -81,14 +82,14 @@
   body{
     background: var(--page);
     color: var(--text-primary);
-    font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-family: "Montserrat", system-ui, -apple-system, "Segoe UI", sans-serif;
     margin:0;
     padding: 0;
     display: flex;
     min-height: 100%;
   }
   h1,h2,h3{
-    font-family: "Manrope", "Inter", system-ui, sans-serif;
+    font-family: "Montserrat", system-ui, sans-serif;
     text-wrap: balance;
     margin: 0;
   }
@@ -127,7 +128,7 @@
     flex-shrink:0; overflow:hidden;
   }
   .brand-mark img{ width:100%; height:100%; object-fit:cover; }
-  .brand-name{ font-weight:800; font-family:"Manrope",sans-serif; color:#fff; font-size:14.5px; line-height:1.15; }
+  .brand-name{ font-weight:800; font-family:"Montserrat",sans-serif; color:#fff; font-size:14.5px; line-height:1.15; }
   .brand-sub{ font-size:11px; color: var(--sidebar-text-dim); }
 
   nav.nav-group{ display:flex; flex-direction:column; gap: 2px; }
@@ -143,25 +144,28 @@
     display:flex;
     align-items:center;
     gap: 10px;
-    padding: 9px 10px;
-    border-radius: 9px;
+    padding: 9px 10px 9px 13px;
+    border-radius: 10px;
     font-size: 13.5px;
     font-weight: 600;
     color: var(--sidebar-text);
     cursor: pointer;
     border: none;
+    border-left: 3px solid transparent;
     background: transparent;
     width: 100%;
     text-align: left;
     position: relative;
+    transition: background .12s ease, border-color .12s ease, color .12s ease;
   }
   .nav-item .ic{ width:17px; height:17px; flex-shrink:0; opacity:.85; }
-  .nav-item:hover{ background: rgba(255,255,255,0.06); }
+  .nav-item:hover{ background: rgba(255,255,255,0.07); }
   .nav-item[aria-current="page"]{
-    background: rgba(255,255,255,0.10);
+    background: rgba(0,155,180,0.16);
     color: var(--sidebar-active);
+    border-left-color: var(--accent);
   }
-  .nav-item[aria-current="page"] .ic{ opacity: 1; }
+  .nav-item[aria-current="page"] .ic{ opacity: 1; color: var(--accent); }
   .nav-item .nav-badge{
     margin-left: auto;
     background: var(--critical);
@@ -190,7 +194,7 @@
     background: var(--accent-soft);
     color: var(--accent-strong);
     display:flex; align-items:center; justify-content:center;
-    font-weight:800; font-size:12.5px; font-family:"Manrope",sans-serif;
+    font-weight:800; font-size:12.5px; font-family:"Montserrat",sans-serif;
     flex-shrink:0;
   }
   .sidebar-foot .who{ min-width:0; }
@@ -254,28 +258,31 @@
     border: 1px solid var(--border);
     background: var(--surface);
     color: var(--text-primary);
-    padding: 10px 16px;
-    border-radius: 10px;
+    padding: 10px 18px;
+    border-radius: 12px;
     font-size: 13px;
     font-weight: 600;
     cursor: pointer;
     box-shadow: var(--shadow);
-    transition: transform .12s ease, background .12s ease;
+    transition: transform .14s ease, background .14s ease, box-shadow .14s ease, border-color .14s ease;
     display: inline-flex;
     align-items: center;
     gap: 6px;
     white-space: nowrap;
   }
-  .btn:hover{ transform: translateY(-1px); }
+  .btn:hover{ transform: translateY(-1.5px); border-color: var(--accent); }
   .btn:active{ transform: translateY(0); }
   .btn:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
   .btn.primary{
-    background: var(--accent);
-    border-color: var(--accent);
+    background: linear-gradient(180deg, var(--accent), var(--accent-strong));
+    border-color: var(--accent-strong);
     color: #fff;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.06), 0 10px 20px -10px var(--accent);
   }
+  .btn.primary:hover{ box-shadow: 0 1px 2px rgba(0,0,0,0.06), 0 14px 26px -10px var(--accent); border-color: var(--accent-strong); }
   .btn.ghost{ background: transparent; box-shadow: none; }
-  .btn.small{ padding: 7px 12px; font-size: 12.5px; }
+  .btn.ghost:hover{ background: var(--surface-2); }
+  .btn.small{ padding: 7px 13px; font-size: 12.5px; border-radius: 10px; }
 
   /* ---------- Notification bell ---------- */
   .bell-wrap{ position: relative; }
@@ -366,14 +373,16 @@
   .kpi{
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 16px;
+    border-radius: 18px;
     padding: 16px 18px;
     box-shadow: var(--shadow);
     display:flex;
     flex-direction: column;
     gap: 10px;
     min-width: 0;
+    transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
   }
+  .kpi:hover{ transform: translateY(-2px); border-color: var(--accent); box-shadow: 0 4px 8px rgba(0,0,0,0.04), 0 16px 28px -14px var(--accent); }
   .kpi-top{ display:flex; align-items:flex-start; justify-content:space-between; gap:8px; }
   .kpi .label{
     font-size: 12px;
@@ -393,7 +402,7 @@
   .kpi .value{
     font-size: 24px;
     font-weight: 800;
-    font-family: "Manrope", sans-serif;
+    font-family: "Montserrat", sans-serif;
     letter-spacing: -0.01em;
   }
   .kpi .sub{ font-size: 12px; color: var(--muted); display:flex; align-items:center; gap:5px; }
@@ -447,7 +456,7 @@
 
   .donut-wrap{ display:flex; flex-direction:column; align-items:center; gap: 14px; height:100%; justify-content:center; }
   svg#donut{ width: 168px; height: 168px; }
-  .donut-center-value{ font-family:"Manrope",sans-serif; font-weight:800; font-size:20px; fill: var(--text-primary); }
+  .donut-center-value{ font-family:"Montserrat",sans-serif; font-weight:800; font-size:20px; fill: var(--text-primary); }
   .donut-center-label{ font-size: 10px; fill: var(--muted); }
   .donut-legend{ display:flex; flex-direction:column; gap:7px; width:100%; }
   .donut-legend-row{ display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:12.5px; }
@@ -469,10 +478,12 @@
     color: var(--text-secondary);
     font-size: 12.5px;
     font-weight: 600;
-    padding: 7px 12px;
+    padding: 7px 13px;
     border-radius: 999px;
     cursor: pointer;
+    transition: background .12s ease, color .12s ease, border-color .12s ease;
   }
+  .chip:hover{ border-color: var(--accent); color: var(--text-primary); }
   .chip[aria-pressed="true"]{
     background: var(--accent-soft);
     color: var(--accent-strong);
@@ -550,6 +561,12 @@
   .badge.pagada .dot{ background: var(--muted); }
   .badge.parcial{ background: var(--accent-soft); color: var(--accent); }
   .badge.parcial .dot{ background: var(--accent); }
+  .badge.anulada{ background: var(--surface-2); color: var(--muted); text-decoration: line-through; }
+  .badge.anulada .dot{ background: var(--muted); }
+  .badge.rechazada{ background: var(--critical-soft); color: var(--critical); }
+  .badge.rechazada .dot{ background: var(--critical); }
+  .badge.tipo-nd{ background: var(--warning-soft); color: var(--warning); }
+  .badge.tipo-nd .dot{ background: var(--warning); }
   .pago-input{
     width: 108px; padding: 5px 7px; font-size: 12px; border-radius: 7px;
     border: 1px solid var(--border); background: var(--surface); color: var(--text);
@@ -582,6 +599,93 @@
   }
   .delete-btn:hover{ background: var(--critical-soft); }
   .delete-btn.armed{ background: var(--critical); color: #fff; border-color: var(--critical); }
+
+  th.sortable{ cursor: pointer; user-select: none; white-space: nowrap; }
+  th.sortable:hover{ color: var(--text-primary); }
+  th.sortable .arrow{ display:inline-block; margin-left:4px; opacity:.35; font-size:9px; }
+  th.sortable.sort-asc .arrow, th.sortable.sort-desc .arrow{ opacity: 1; color: var(--accent); }
+
+  tbody tr.totals-row td{ font-weight: 800; border-top: 2px solid var(--gridline); border-bottom: none; background: var(--surface-2); }
+  tbody tr.totals-row td:first-child{ background: var(--surface-2); }
+
+  .info-tip{ position:relative; display:inline-flex; align-items:center; margin-left:5px; }
+  .info-tip .ic{
+    width:15px; height:15px; border-radius:50%; background: var(--surface-2); color: var(--muted);
+    font-size:10px; font-weight:800; display:flex; align-items:center; justify-content:center;
+    border:1px solid var(--border); cursor: help; font-style: normal;
+  }
+  .info-tip .bubble{
+    display:none; position:absolute; bottom: 22px; left: 50%; transform: translateX(-50%);
+    background: var(--text-primary); color: var(--page); font-size:11.5px; font-weight:500;
+    padding:8px 10px; border-radius:8px; width: 220px; line-height:1.45; z-index: 20;
+    box-shadow: var(--shadow); text-transform:none; letter-spacing:normal;
+  }
+  .info-tip:hover .bubble, .info-tip:focus-within .bubble{ display:block; }
+
+  .panel-toolbar{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin: 10px 0 4px; }
+  .btn.tiny{ padding: 4px 9px; font-size: 11px; border-radius: 6px; }
+
+  .global-search-wrap{ position: relative; }
+  .global-search-wrap .search{ width: 260px; }
+  .global-search-results{
+    position: absolute; top: calc(100% + 6px); left: 0; width: 340px; max-height: 360px; overflow-y: auto;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); z-index: 40;
+  }
+  .gsr-item{ display:block; width:100%; text-align:left; padding: 9px 12px; border: none; background: none; cursor: pointer; border-bottom: 1px solid var(--gridline); font-size: 12.5px; }
+  .gsr-item:last-child{ border-bottom: none; }
+  .gsr-item:hover{ background: var(--surface-2); }
+  .gsr-item .t1{ font-weight: 700; }
+  .gsr-item .t2{ color: var(--muted); font-size: 11.5px; }
+  .gsr-empty{ padding: 14px 12px; color: var(--muted); font-size: 12.5px; }
+
+  body.compact-mode tbody td, body.compact-mode thead th{ padding: 5px 8px; font-size: 12.3px; }
+  body.compact-mode .panel{ padding: 12px 14px 14px; }
+
+  .kanban-board{ display:flex; gap:12px; overflow-x:auto; padding-bottom: 6px; }
+  .kanban-col{ background: var(--surface-2); border-radius: 14px; padding: 10px; min-width: 240px; flex: 1; }
+  .kanban-col h3{ font-size: 12.5px; font-weight: 700; margin-bottom: 8px; display:flex; justify-content:space-between; }
+  .kanban-col.drop-over{ outline: 2px dashed var(--accent); }
+  .kanban-card{
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 9px 10px;
+    margin-bottom: 8px; font-size: 12px; box-shadow: var(--shadow); cursor: grab;
+  }
+  .kanban-card .k1{ font-weight: 700; }
+  .kanban-card .k2{ color: var(--muted); font-size: 11px; margin-top: 2px; }
+
+  .client-notes{ margin-top: 8px; background: var(--surface-2); border-radius: 10px; padding: 8px 10px; max-width: 320px; }
+  .client-notes .note-item{ font-size: 11.5px; padding: 4px 0; border-bottom: 1px dashed var(--gridline); }
+  .client-notes .note-item:last-child{ border-bottom: none; }
+  .client-notes .note-item .nd{ color: var(--muted); font-size: 10.5px; }
+
+  @media print{
+    .sidebar, .sidebar-overlay, .menu-btn, .actions, .table-toolbar, .panel-toolbar,
+    .filters, .send-cobranza-btn, .crossref-btn, .delete-btn, .pago-save-btn, .pay-btn,
+    .gcal-btn, .contact-cell button, td.num.actions, .bell-wrap { display: none !important; }
+    .main{ max-width: none; padding: 0; }
+    .view[hidden]{ display: block !important; }
+    .view{ page-break-after: always; }
+    body{ background: #fff; }
+  }
+
+  .goal-semaforo{ display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:10px; background: var(--surface-2); margin-top:10px; }
+  .goal-semaforo .dot3{ width:12px; height:12px; border-radius:50%; flex-shrink:0; }
+  .goal-semaforo .dot3.roja{ background: var(--critical); }
+  .goal-semaforo .dot3.amarilla{ background: var(--warning); }
+  .goal-semaforo .dot3.verde{ background: var(--good); }
+  .goal-semaforo .txt{ font-size:12.5px; color: var(--text-secondary); }
+  .goal-semaforo .txt strong{ color: var(--text-primary); }
+
+  .crossref-btn{
+    border:1px solid var(--accent); color: var(--accent); background: transparent;
+    border-radius: 7px; padding: 4px 9px; font-size: 11px; cursor: pointer; white-space:nowrap;
+  }
+  .crossref-btn:hover{ background: var(--accent-soft); }
+
+  .gcal-btn{
+    border:1px solid var(--border); background: transparent; color: var(--text-secondary);
+    border-radius: 7px; padding: 4px 8px; font-size: 11px; cursor: pointer; text-decoration:none; display:inline-flex; align-items:center; gap:4px;
+  }
+  .gcal-btn:hover{ background: var(--surface-2); }
 
   .pay-btn{
     border: 1px solid var(--border);
@@ -647,7 +751,7 @@
     box-shadow: var(--shadow);
   }
   .aging-card .band{ font-size: 11.5px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; }
-  .aging-card .amt{ font-size: 19px; font-weight: 800; font-family:"Manrope",sans-serif; }
+  .aging-card .amt{ font-size: 19px; font-weight: 800; font-family:"Montserrat",sans-serif; }
   .aging-card .n{ font-size: 11.5px; color: var(--muted); margin-top: 3px; }
   .aging-card.b0{ border-left: 3px solid var(--good); }
   .aging-card.b1{ border-left: 3px solid var(--warning); }
@@ -773,6 +877,12 @@
       </div>
     </div>
     <div class="actions">
+      <div class="global-search-wrap">
+        <input class="search" id="global-search" type="search" placeholder="Buscar en todo (folio, cliente, RUT)… ( / )" aria-label="Buscar en todo el dashboard">
+        <div id="global-search-results" class="global-search-results" hidden></div>
+      </div>
+      <button class="btn ghost small" id="density-btn" type="button" title="Alternar entre vista normal y compacta de las tablas">↕ Compacto</button>
+      <button class="btn ghost small" id="print-pdf-btn" type="button" title="Exportar todo el dashboard a PDF (usa Imprimir → Guardar como PDF)">🖨 Exportar PDF</button>
       <div class="bell-wrap">
         <button class="bell-btn" id="bell-btn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Notificaciones de vencimiento">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
@@ -789,7 +899,6 @@
       <select class="btn ghost" id="year-filter" aria-label="Filtrar por año"></select>
       <select class="btn ghost" id="month-filter" aria-label="Filtrar por mes"></select>
       <button class="btn ghost" id="reset-btn" type="button">Restablecer datos</button>
-      <button class="btn primary" id="simulate-btn" type="button">+ Simular nueva factura</button>
     </div>
   </header>
 
@@ -798,7 +907,9 @@
     <section class="kpi-grid" aria-label="Resumen de facturación">
       <div class="kpi facturado">
         <div class="kpi-top">
-          <div class="label">Monto facturado</div>
+          <div class="label">Monto facturado
+            <span class="info-tip" tabindex="0"><i class="ic">i</i><span class="bubble">Suma del campo Total de todas las facturas visibles según el filtro de año/mes actual.</span></span>
+          </div>
           <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 2v20M17 5.5H9.5a3 3 0 0 0 0 6h5a3 3 0 0 1 0 6H6"/></svg></div>
         </div>
         <div class="value tabular" id="kpi-facturado">$0</div>
@@ -829,6 +940,11 @@
         <div class="sub"><span class="chip-delta" id="kpi-vencido-sub">0</span>requiere gestión</div>
       </div>
     </section>
+
+    <div id="drive-link-wrap" style="margin:14px 0 0;" hidden>
+      <a id="drive-link-btn" class="btn ghost small" href="#" target="_blank" rel="noopener">📁 Abrir carpeta de respaldos en Drive</a>
+    </div>
+    <div id="goal-semaforo-wrap" hidden></div>
 
     <div class="row-2col">
       <section class="panel">
@@ -880,27 +996,76 @@
           <button class="chip" data-filter="por-vencer" aria-pressed="false" type="button">🟡 Por vencer</button>
           <button class="chip" data-filter="al-dia" aria-pressed="false" type="button">🟢 Al día</button>
           <button class="chip" data-filter="pagada" aria-pressed="false" type="button">Pagadas</button>
+          <button class="chip" data-filter="rechazada" aria-pressed="false" type="button">🚫 Rechazadas</button>
+          <button class="chip" data-filter="anulada" aria-pressed="false" type="button">Anuladas (NC)</button>
         </div>
         <input class="search" id="search" type="search" placeholder="Buscar por razón social, RUT o folio…" aria-label="Buscar factura">
       </div>
+      <div class="panel-toolbar">
+        <button class="btn ghost tiny" id="export-facturas-csv-btn" type="button">⬇ Descargar tabla (Excel/CSV)</button>
+        <button class="btn ghost tiny" id="toggle-new-invoice-btn" type="button">+ Agregar factura manual</button>
+        <span class="info-tip" tabindex="0"><i class="ic">i</i><span class="bubble">Haz clic en cualquier encabezado (Folio, Razón social, Total, Vencimiento, etc.) para ordenar la tabla. Un segundo clic invierte el orden. Usa "Editar" en cada fila para corregir un dato.</span></span>
+      </div>
+      <form class="settings-form" id="new-invoice-form" style="max-width:680px; margin-bottom:16px; gap:12px;" hidden>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <div class="field" style="flex:1; min-width:100px;">
+            <label for="ni-folio">Folio</label>
+            <input type="number" id="ni-folio" min="1" step="1">
+          </div>
+          <div class="field" style="flex:2; min-width:200px;">
+            <label for="ni-razon">Razón social</label>
+            <input type="text" id="ni-razon" placeholder="Nombre del cliente">
+          </div>
+          <div class="field" style="flex:1; min-width:140px;">
+            <label for="ni-rut">RUT</label>
+            <input type="text" id="ni-rut" placeholder="76.123.456-7">
+          </div>
+        </div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <div class="field" style="flex:1; min-width:130px;">
+            <label for="ni-neto">Monto neto (CLP)</label>
+            <input type="number" id="ni-neto" min="0" step="1" placeholder="0">
+          </div>
+          <div class="field" style="flex:1; min-width:130px;">
+            <label for="ni-iva">IVA (CLP)</label>
+            <input type="number" id="ni-iva" min="0" step="1" placeholder="Se calcula solo si lo dejas vacío">
+          </div>
+          <div class="field" style="flex:1; min-width:150px;">
+            <label for="ni-emision">Fecha emisión</label>
+            <input type="date" id="ni-emision">
+          </div>
+          <div class="field" style="flex:1; min-width:150px;">
+            <label for="ni-vencimiento">Fecha vencimiento</label>
+            <input type="date" id="ni-vencimiento">
+            <div class="field-hint">Vacío = se calcula sola según el plazo de cobro de Ajustes.</div>
+          </div>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn primary small" type="submit">Guardar factura</button>
+          <button class="btn ghost small" type="button" id="cancel-new-invoice-btn">Cancelar</button>
+        </div>
+      </form>
       <div class="table-scroll">
-        <table>
+        <table id="table-facturas">
           <thead>
             <tr>
-              <th>Folio</th>
-              <th>Razón social</th>
-              <th>RUT</th>
-              <th class="num">Neto</th>
-              <th class="num">IVA</th>
-              <th class="num">Total</th>
-              <th class="num">Pagado</th>
-              <th class="num">Saldo</th>
-              <th>Vencimiento</th>
-              <th>Estado</th>
+              <th class="sortable" data-key="folio" data-type="number">Folio<span class="arrow">▲</span></th>
+              <th class="sortable" data-key="razonSocial" data-type="text">Razón social<span class="arrow">▲</span></th>
+              <th class="sortable" data-key="rut" data-type="text">RUT<span class="arrow">▲</span></th>
+              <th class="num sortable" data-key="neto" data-type="number">Neto<span class="arrow">▲</span></th>
+              <th class="num sortable" data-key="iva" data-type="number">IVA<span class="arrow">▲</span></th>
+              <th class="num sortable" data-key="total" data-type="number">Total<span class="arrow">▲</span></th>
+              <th class="num sortable" data-key="_pagado" data-type="number">Pagado<span class="arrow">▲</span></th>
+              <th class="num sortable" data-key="_saldo" data-type="number">Saldo<span class="arrow">▲</span></th>
+              <th class="sortable" data-key="vencimiento" data-type="date">Vencimiento<span class="arrow">▲</span></th>
+              <th class="sortable" data-key="_estado" data-type="text">Estado<span class="arrow">▲</span></th>
+              <th class="sortable" data-key="_responsable" data-type="text">Responsable<span class="arrow">▲</span></th>
+              <th class="sortable" data-key="_concepto" data-type="text">Concepto / Glosa<span class="arrow">▲</span></th>
               <th></th>
             </tr>
           </thead>
           <tbody id="invoice-body"></tbody>
+          <tfoot id="invoice-totals"></tfoot>
         </table>
       </div>
       <footer class="foot">
@@ -918,15 +1083,29 @@
         <h2>Cartera por cobrar, ordenada por urgencia</h2>
         <span class="hint">vencidas primero, luego por días restantes</span>
       </div>
-      <div class="table-scroll">
-        <table>
+      <div class="panel-toolbar">
+        <button class="btn ghost tiny" id="export-cobranza-csv-btn" type="button">⬇ Descargar tabla (Excel/CSV)</button>
+        <button class="btn ghost tiny" id="toggle-kanban-btn" type="button">🗂 Vista Kanban</button>
+        <span class="info-tip" tabindex="0"><i class="ic">i</i><span class="bubble">Ordena por cualquier columna haciendo clic en su encabezado. Un segundo clic invierte el orden. En la vista Kanban, arrastra una tarjeta a "Pagada" para marcarla pagada.</span></span>
+      </div>
+      <div id="cobranza-kanban" class="kanban-board" hidden></div>
+      <div class="table-scroll" id="cobranza-table-wrap">
+        <table id="table-cobranza">
           <thead>
             <tr>
-              <th>Folio</th><th>Razón social</th><th>RUT</th>
-              <th class="num">Total</th><th class="num">Saldo</th><th>Vencimiento</th><th>Días</th><th>Estado</th><th></th>
+              <th class="sortable" data-key="folio" data-type="number">Folio<span class="arrow">▲</span></th>
+              <th class="sortable" data-key="razonSocial" data-type="text">Razón social<span class="arrow">▲</span></th>
+              <th class="sortable" data-key="rut" data-type="text">RUT<span class="arrow">▲</span></th>
+              <th class="num sortable" data-key="total" data-type="number">Total<span class="arrow">▲</span></th>
+              <th class="num sortable" data-key="_saldo" data-type="number">Saldo<span class="arrow">▲</span></th>
+              <th class="sortable" data-key="vencimiento" data-type="date">Vencimiento<span class="arrow">▲</span></th>
+              <th class="sortable" data-key="_dias" data-type="number">Días<span class="arrow">▲</span></th>
+              <th class="sortable" data-key="_estado" data-type="text">Estado<span class="arrow">▲</span></th>
+              <th></th>
             </tr>
           </thead>
           <tbody id="cobranza-body"></tbody>
+          <tfoot id="cobranza-totals"></tfoot>
         </table>
       </div>
     </section>
@@ -939,17 +1118,25 @@
         <h2>Cartera por cliente</h2>
         <span class="hint" id="clientes-count">0 clientes</span>
       </div>
+      <div class="panel-toolbar">
+        <button class="btn ghost tiny" id="export-clientes-csv-btn" type="button">⬇ Descargar tabla (Excel/CSV)</button>
+        <span class="info-tip" tabindex="0"><i class="ic">i</i><span class="bubble">Ordena por cualquier columna haciendo clic en su encabezado. El botón "Ver facturas" te lleva directo a la pestaña Facturas filtrada por ese cliente, sin tener que buscarlo tú mismo.</span></span>
+      </div>
       <div class="table-scroll">
-        <table>
+        <table id="table-clientes">
           <thead>
             <tr>
-              <th>Cliente</th><th class="num">Facturas</th>
-              <th class="num">Total facturado</th><th class="num">Pendiente</th>
-              <th class="num">Vencido</th><th>Peor estado</th>
+              <th class="sortable" data-key="razonSocial" data-type="text">Cliente<span class="arrow">▲</span></th>
+              <th class="num sortable" data-key="n" data-type="number">Facturas<span class="arrow">▲</span></th>
+              <th class="num sortable" data-key="total" data-type="number">Total facturado<span class="arrow">▲</span></th>
+              <th class="num sortable" data-key="pendiente" data-type="number">Pendiente<span class="arrow">▲</span></th>
+              <th class="num sortable" data-key="vencido" data-type="number">Vencido<span class="arrow">▲</span></th>
+              <th class="sortable" data-key="peor" data-type="text">Peor estado<span class="arrow">▲</span></th>
               <th>Email de contacto</th><th></th>
             </tr>
           </thead>
           <tbody id="clientes-body"></tbody>
+          <tfoot id="clientes-totals"></tfoot>
         </table>
       </div>
     </section>
@@ -962,14 +1149,42 @@
         <h2>Resumen mensual</h2>
         <span class="hint">últimos 6 meses</span>
       </div>
+      <div class="panel-toolbar">
+        <button class="btn ghost tiny" id="export-reportes-csv-btn" type="button">⬇ Descargar tabla (Excel/CSV)</button>
+      </div>
       <div class="table-scroll">
-        <table class="compact">
+        <table class="compact" id="table-reportes">
           <thead>
             <tr><th>Mes</th><th class="num">Facturado</th><th class="num">Pagado</th><th class="num">Pendiente</th><th class="num"># Facturas</th></tr>
           </thead>
           <tbody id="reportes-body"></tbody>
+          <tfoot id="reportes-totals"></tfoot>
         </table>
       </div>
+    </section>
+    <div class="row-2col">
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Tendencia de cobranza</h2>
+          <span class="hint">facturado vs. pagado vs. pendiente, por mes</span>
+        </div>
+        <svg id="line-chart" viewBox="0 0 640 220" role="img" aria-label="Gráfico de líneas de tendencia de cobranza"></svg>
+        <div class="donut-legend" id="line-chart-legend"></div>
+      </section>
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Distribución por monto</h2>
+          <span class="hint">cuántas facturas caen en cada rango</span>
+        </div>
+        <svg id="histogram" viewBox="0 0 400 220" role="img" aria-label="Histograma de montos de factura"></svg>
+      </section>
+    </div>
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Patrón mensual (radar)</h2>
+        <span class="hint">forma de la facturación mes a mes — un mes atípico se nota como un pico</span>
+      </div>
+      <svg id="radar-chart" viewBox="0 0 320 320" role="img" aria-label="Gráfico de radar de facturación mensual"></svg>
     </section>
     <section class="panel">
       <div class="panel-head">
@@ -997,8 +1212,55 @@
           <input type="number" id="set-umbral" min="1" max="60" step="1">
           <div class="field-hint">Define cuándo una factura pasa a amarillo en el semáforo.</div>
         </div>
+        <div class="field">
+          <label for="set-meta">Meta de facturación mensual (CLP)</label>
+          <input type="number" id="set-meta" min="0" step="1000">
+          <div class="field-hint">Se usa para el semáforo de cumplimiento de meta que aparece en Resumen. Déjalo en 0 para ocultarlo.</div>
+        </div>
         <div>
           <button class="btn primary" type="submit">Guardar parámetros</button>
+        </div>
+      </form>
+    </section>
+    <section class="panel">
+      <div class="panel-head"><h2>Enlazar con Google Drive</h2></div>
+      <p style="font-size:13px; color:var(--text-secondary); max-width:620px; line-height:1.6;">
+        Pega aquí el link de la carpeta de Drive donde guardas los Libros de Venta y otros respaldos. Se guarda un
+        botón de acceso rápido en Resumen para abrirla sin tener que buscarla.
+      </p>
+      <form class="settings-form" id="drive-form" style="margin-top:10px;">
+        <div class="field">
+          <label for="drive-url">Link de la carpeta de Drive</label>
+          <input type="url" id="drive-url" placeholder="https://drive.google.com/drive/folders/...">
+        </div>
+        <div>
+          <button class="btn ghost" type="submit">Guardar link de Drive</button>
+        </div>
+      </form>
+    </section>
+    <section class="panel">
+      <div class="panel-head"><h2>Enviar correos desde la plataforma (EmailJS)</h2></div>
+      <p style="font-size:13px; color:var(--text-secondary); max-width:660px; line-height:1.6;">
+        Con esto, el botón "Enviar cobranza" de Clientes manda el correo <strong>directo desde el dashboard</strong>,
+        sin abrir tu Gmail, y queda un historial de cuántos correos se han enviado a cada cliente. Necesitas una
+        cuenta gratuita en <strong>emailjs.com</strong> conectada a tu Gmail (una vez), y pegar aquí sus 3 datos.
+        Si dejas estos campos vacíos, el botón sigue funcionando como hasta ahora (abre tu correo).
+      </p>
+      <form class="settings-form" id="emailjs-form" style="margin-top:10px;">
+        <div class="field">
+          <label for="ej-service">Service ID</label>
+          <input type="text" id="ej-service" placeholder="service_xxxxxxx" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="ej-template">Template ID</label>
+          <input type="text" id="ej-template" placeholder="template_xxxxxxx" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="ej-publickey">Public Key</label>
+          <input type="text" id="ej-publickey" placeholder="xxxxxxxxxxxxxxxx" autocomplete="off">
+        </div>
+        <div>
+          <button class="btn primary" type="submit">Guardar y activar envío directo</button>
         </div>
       </form>
     </section>
@@ -1025,13 +1287,66 @@
       <div id="import-log" class="import-log" hidden></div>
     </section>
     <section class="panel">
-      <div class="panel-head"><h2>Descargar facturas.json actualizado</h2></div>
-      <p style="font-size:13px; color:var(--text-secondary); max-width:620px; line-height:1.6;">
-        Lo que importas o marcas como pagado aquí solo se guarda en este navegador. Para que el link publicado en
-        GitHub y el aviso semanal por correo vean los mismos datos, descarga este archivo y súbelo a tu repositorio
-        reemplazando el <code>facturas.json</code> actual.
+      <div class="panel-head"><h2>Cartola bancaria (sugerencias de pago)</h2></div>
+      <p style="font-size:13px; color:var(--text-secondary); max-width:640px; line-height:1.6;">
+        Sube el CSV de movimientos de tu cuenta bancaria (el detalle/cartola que descargas del portal de tu banco).
+        El dashboard busca facturas pendientes con el <strong>mismo monto</strong> y te muestra sugerencias —
+        <strong>nunca marca nada como pagado solo</strong>: tú revisas cada sugerencia y decides si la aceptas o no.
       </p>
-      <button class="btn primary" id="export-json-btn" type="button">Descargar facturas.json</button>
+      <div class="import-row">
+        <input type="file" id="cartola-file" accept=".csv" />
+        <button class="btn primary" id="cartola-btn" type="button">Analizar cartola</button>
+      </div>
+      <p style="font-size:12.5px; color:var(--muted); margin-top:14px;">
+        ¿Prefieres pegar el texto? Cópialo desde Excel o el portal del banco (con encabezados) y pégalo aquí:
+      </p>
+      <textarea id="cartola-paste" class="import-paste" rows="6" placeholder="Pega aquí el detalle de la cartola (Fecha, Descripción/Glosa, Monto o Abono)..."></textarea>
+      <div class="import-row">
+        <button class="btn ghost" id="cartola-paste-btn" type="button">Analizar texto pegado</button>
+      </div>
+      <div id="cartola-log" class="import-log" hidden></div>
+      <div id="cartola-results" style="margin-top:14px;"></div>
+    </section>
+    <section class="panel">
+      <div class="panel-head"><h2>Publicar cambios en GitHub</h2></div>
+      <p style="font-size:13px; color:var(--text-secondary); max-width:640px; line-height:1.6;">
+        Lo que importas o marcas como pagado aquí solo se guarda en este navegador. Configura esto <strong>una sola vez</strong>
+        y desde entonces el botón "Guardar y publicar" sube el <code>facturas.json</code> actualizado directo a tu
+        repositorio de GitHub — sin descargar ni pegar nada a mano. Las demás personas verán los cambios apenas
+        recarguen el link (1-2 minutos).
+      </p>
+      <form class="settings-form" id="github-form" style="margin-top:14px;">
+        <div class="field">
+          <label for="gh-owner">Usuario de GitHub</label>
+          <input type="text" id="gh-owner" placeholder="fmorales-svg" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="gh-repo">Nombre del repositorio</label>
+          <input type="text" id="gh-repo" placeholder="cobranza-dmz" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="gh-branch">Rama</label>
+          <input type="text" id="gh-branch" placeholder="main" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="gh-token">Token de acceso personal de GitHub</label>
+          <input type="password" id="gh-token" placeholder="ghp_..." autocomplete="off">
+          <div class="field-hint">
+            Se guarda solo en este navegador y solo se usa para hablar con GitHub. Crea uno en
+            GitHub → foto de perfil → Settings → Developer settings → Personal access tokens → Fine-grained tokens →
+            "Generate new token", dale acceso solo a este repositorio, y en permisos ("Repository permissions")
+            elige <strong>Contents: Read and write</strong>. Copia el token generado (empieza con "github_pat_" o "ghp_") y pégalo aquí.
+          </div>
+        </div>
+        <div>
+          <button class="btn ghost" type="submit">Guardar configuración</button>
+        </div>
+      </form>
+      <div class="import-row" style="margin-top: 16px;">
+        <button class="btn primary" id="publish-github-btn" type="button">Guardar y publicar en GitHub</button>
+        <button class="btn ghost" id="export-json-btn" type="button">O descargar facturas.json manualmente</button>
+      </div>
+      <div id="publish-log" class="import-log" hidden></div>
     </section>
   </section>
 </main>
@@ -1045,6 +1360,12 @@
   var STORAGE_KEY = "dmz-cobranza-facturas-v1";
   var SETTINGS_KEY = "dmz-cobranza-settings-v1";
   var CONTACTS_KEY = "dmz-cobranza-contactos-v1";
+  var GITHUB_KEY = "dmz-cobranza-github-v1";
+  var DRIVE_KEY = "dmz-cobranza-drive-v1";
+  var EMAILJS_KEY = "dmz-cobranza-emailjs-v1";
+  var EMAIL_HISTORY_KEY = "dmz-cobranza-email-historial-v1";
+  var COMPACT_KEY = "dmz-cobranza-compacto-v1";
+  var NOTES_KEY = "dmz-cobranza-notas-clientes-v1";
   var IVA_RATE = 0.19;
 
   var RAZONES = [
@@ -1081,7 +1402,7 @@
   }
 
   function loadSettings(){
-    var defaults = { plazoDias: 30, umbralDias: 7 };
+    var defaults = { plazoDias: 30, umbralDias: 7, metaMensual: 0 };
     try {
       var raw = localStorage.getItem(SETTINGS_KEY);
       if (raw){
@@ -1107,6 +1428,96 @@
     try { localStorage.setItem(CONTACTS_KEY, JSON.stringify(state.contacts)); }
     catch(e) { /* storage unavailable */ }
   }
+  function loadGithubConfig(){
+    var defaults = { owner: "", repo: "", branch: "main", path: "facturas.json", token: "" };
+    try {
+      var raw = localStorage.getItem(GITHUB_KEY);
+      if (raw) return Object.assign({}, defaults, JSON.parse(raw));
+    } catch(e) { /* fall back to defaults */ }
+    return defaults;
+  }
+  function saveGithubConfig(){
+    try { localStorage.setItem(GITHUB_KEY, JSON.stringify(state.githubConfig)); }
+    catch(e) { /* storage unavailable */ }
+  }
+
+  function loadDriveUrl(){
+    try { return localStorage.getItem(DRIVE_KEY) || ""; }
+    catch(e) { return ""; }
+  }
+  function saveDriveUrl(){
+    try { localStorage.setItem(DRIVE_KEY, state.driveUrl || ""); }
+    catch(e) { /* storage unavailable */ }
+  }
+
+  function loadEmailjsConfig(){
+    var defaults = { service: "", template: "", publicKey: "" };
+    try {
+      var raw = localStorage.getItem(EMAILJS_KEY);
+      if (raw) return Object.assign({}, defaults, JSON.parse(raw));
+    } catch(e) { /* fall back to defaults */ }
+    return defaults;
+  }
+  function saveEmailjsConfig(){
+    try { localStorage.setItem(EMAILJS_KEY, JSON.stringify(state.emailjsConfig)); }
+    catch(e) { /* storage unavailable */ }
+  }
+  function emailjsListo(){
+    var c = state.emailjsConfig;
+    return !!(c && c.service && c.template && c.publicKey && window.emailjs);
+  }
+
+  function loadEmailHistory(){
+    try {
+      var raw = localStorage.getItem(EMAIL_HISTORY_KEY);
+      if (raw) return JSON.parse(raw) || {};
+    } catch(e) { /* fall back to empty */ }
+    return {};
+  }
+  function saveEmailHistory(){
+    try { localStorage.setItem(EMAIL_HISTORY_KEY, JSON.stringify(state.emailHistory)); }
+    catch(e) { /* storage unavailable */ }
+  }
+  function logEmailSent(rut, email){
+    var key = contactKey(rut);
+    if (!state.emailHistory[key]) state.emailHistory[key] = [];
+    state.emailHistory[key].push({ fecha: new Date().toISOString(), para: email });
+    saveEmailHistory();
+  }
+  function emailHistoryDe(rut){
+    return state.emailHistory[contactKey(rut)] || [];
+  }
+
+  function loadCompact(){
+    try { return localStorage.getItem(COMPACT_KEY) === "1"; }
+    catch(e) { return false; }
+  }
+  function saveCompact(on){
+    try { localStorage.setItem(COMPACT_KEY, on ? "1" : "0"); }
+    catch(e) { /* storage unavailable */ }
+  }
+
+  function loadNotes(){
+    try {
+      var raw = localStorage.getItem(NOTES_KEY);
+      if (raw) return JSON.parse(raw) || {};
+    } catch(e) { /* fall back to empty */ }
+    return {};
+  }
+  function saveNotesStore(){
+    try { localStorage.setItem(NOTES_KEY, JSON.stringify(state.clientNotes)); }
+    catch(e) { /* storage unavailable */ }
+  }
+  function notesDe(rut){ return state.clientNotes[contactKey(rut)] || []; }
+  function addNote(rut, texto){
+    texto = (texto || "").trim();
+    if (!texto) return;
+    var key = contactKey(rut);
+    if (!state.clientNotes[key]) state.clientNotes[key] = [];
+    state.clientNotes[key].push({ fecha: new Date().toISOString(), texto: texto });
+    saveNotesStore();
+  }
+
   function contactKey(rut){ return String(rut || "").trim().toUpperCase(); }
   function getContactEmail(rut){
     return (state.contacts[contactKey(rut)] || "").trim();
@@ -1130,7 +1541,14 @@
   }
   // What's still owed on this invoice.
   function saldoDe(f){
+    if (f.anulada) return 0;
     return Math.max(0, f.total - montoPagadoDe(f));
+  }
+  // "Facturado" real: una factura anulada por Nota de Crédito no debe sumar
+  // a los totales de facturación (KPIs, gráficos, reportes), aunque su
+  // monto original se siga mostrando en su propia fila para trazabilidad.
+  function facturadoDe(f){
+    return f.anulada ? 0 : f.total;
   }
   function esParcial(f){
     var pagado = montoPagadoDe(f);
@@ -1138,6 +1556,8 @@
   }
 
   function estadoDe(f){
+    if (f.anulada) return "anulada";
+    if (f.rechazada) return "rechazada";
     if (saldoDe(f) <= 0) return "pagada";
     var d = daysUntil(f.vencimiento);
     if (d < 0) return "vencido";
@@ -1146,7 +1566,8 @@
   }
 
   var ESTADO_LABEL = {
-    "vencido": "Vencido", "por-vencer": "Por vencer", "al-dia": "Al día", "pagada": "Pagada"
+    "vencido": "Vencido", "por-vencer": "Por vencer", "al-dia": "Al día", "pagada": "Pagada",
+    "anulada": "Anulada (NC)", "rechazada": "Rechazada por cliente"
   };
 
   var folioSeq = 1000;
@@ -1260,13 +1681,73 @@
     settings: loadSettings(),
     invoices: [],
     contacts: loadContacts(),
+    githubConfig: loadGithubConfig(),
+    driveUrl: loadDriveUrl(),
+    emailjsConfig: loadEmailjsConfig(),
+    emailHistory: loadEmailHistory(),
+    clientNotes: loadNotes(),
+    kanbanMode: false,
+    notesOpenRut: null,
     filter: "todas",
     query: "",
     view: "resumen",
     dataSource: "demo",
     yearFilter: "todos",
-    monthFilter: "todos"
+    monthFilter: "todos",
+    editingFolio: null,
+    sort: {
+      facturas: { key: null, dir: 1 },
+      cobranza: { key: null, dir: 1 },
+      clientes: { key: null, dir: 1 }
+    }
   };
+
+  function compareValues(a, b, type){
+    if (type === "number") return (Number(a) || 0) - (Number(b) || 0);
+    if (type === "date") return new Date(a) - new Date(b);
+    return String(a === undefined || a === null ? "" : a).localeCompare(
+      String(b === undefined || b === null ? "" : b), "es", { sensitivity: "base" }
+    );
+  }
+
+  function applySort(rows, sortState, accessors){
+    if (!sortState.key) return rows;
+    var acc = accessors[sortState.key];
+    if (!acc) return rows;
+    return rows.slice().sort(function(a, b){
+      return compareValues(acc.get(a), acc.get(b), acc.type) * sortState.dir;
+    });
+  }
+
+  function setupSortableHeaders(tableId, sortKey, renderFn){
+    var table = document.getElementById(tableId);
+    if (!table) return;
+    table.querySelectorAll("th.sortable").forEach(function(th){
+      th.addEventListener("click", function(){
+        var key = th.getAttribute("data-key");
+        var st = state.sort[sortKey];
+        if (st.key === key) st.dir = -st.dir;
+        else { st.key = key; st.dir = 1; }
+        renderFn();
+      });
+    });
+  }
+
+  function updateSortHeaderUI(tableId, sortKey){
+    var table = document.getElementById(tableId);
+    if (!table) return;
+    var st = state.sort[sortKey];
+    table.querySelectorAll("th.sortable").forEach(function(th){
+      th.classList.remove("sort-asc", "sort-desc");
+      var arrow = th.querySelector(".arrow");
+      if (th.getAttribute("data-key") === st.key){
+        th.classList.add(st.dir === 1 ? "sort-asc" : "sort-desc");
+        if (arrow) arrow.textContent = st.dir === 1 ? "▲" : "▼";
+      } else if (arrow){
+        arrow.textContent = "▲";
+      }
+    });
+  }
 
   var MESES_LARGO = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 
@@ -1329,7 +1810,7 @@
     var totalFacturado = 0, totalPagado = 0, totalPendiente = 0, totalVencido = 0;
     var nEmitidas = scope.length, nPendientes = 0;
     scope.forEach(function(f){
-      totalFacturado += f.total;
+      totalFacturado += facturadoDe(f);
       totalPagado += montoPagadoDe(f);
       var saldo = saldoDe(f);
       if (saldo > 0){
@@ -1579,11 +2060,110 @@
     else showToast("Pago de folio " + f.folio + " limpiado.");
   }
 
+  function toggleRechazada(f){
+    f.rechazada = !f.rechazada;
+    saveData();
+    renderAll();
+    showToast(f.rechazada
+      ? "Folio " + f.folio + " marcado como rechazado por el cliente."
+      : "Folio " + f.folio + " ya no está marcado como rechazado.");
+  }
+
   function deleteInvoice(f){
     state.invoices = state.invoices.filter(function(x){ return x !== f; });
     saveData();
     renderAll();
     showToast("Factura folio " + f.folio + " eliminada.");
+  }
+
+  function addManualInvoice(data){
+    var folio = parseInt(data.folio, 10);
+    var razon = (data.razon || "").trim();
+    var rut = (data.rut || "").trim();
+    var neto = Number(data.neto);
+    if (!folio || !razon || !rut || !isFinite(neto) || neto <= 0 || !data.emision){
+      showToast("Completa al menos folio, razón social, RUT, monto neto y fecha de emisión.");
+      return false;
+    }
+    if (state.invoices.some(function(x){ return x.folio === folio; })){
+      showToast("Ya existe una factura con el folio " + folio + ".");
+      return false;
+    }
+    var iva = data.iva !== "" && data.iva !== undefined && data.iva !== null && isFinite(Number(data.iva))
+      ? Math.round(Number(data.iva)) : Math.round(neto * 0.19);
+    var total = neto + iva;
+    var vencimiento = data.vencimiento
+      ? data.vencimiento
+      : addDays(data.emision, state.settings.plazoDias).toISOString().slice(0,10);
+    var factura = {
+      folio: folio,
+      razonSocial: razon,
+      rut: rut,
+      neto: neto,
+      iva: iva,
+      total: total,
+      emision: data.emision,
+      vencimiento: vencimiento,
+      pagada: false,
+      montoPagado: 0
+    };
+    state.invoices.unshift(factura);
+    if (folio > folioSeq) folioSeq = folio;
+    saveData();
+    renderAll();
+    showToast("Factura folio " + folio + " (" + razon + ") agregada por " + fmtCLP(total) + ".");
+    return true;
+  }
+
+  function saveInvoiceEdit(f, data){
+    var razon = (data.razon || "").trim();
+    var rut = (data.rut || "").trim();
+    var neto = Number(data.neto);
+    var iva = Number(data.iva);
+    if (!razon || !rut || !isFinite(neto) || neto < 0 || !isFinite(iva) || iva < 0 || !data.vencimiento){
+      showToast("Revisa los datos: razón social, RUT, montos y vencimiento no pueden quedar vacíos o negativos.");
+      return false;
+    }
+    f.razonSocial = razon;
+    f.rut = rut;
+    f.neto = neto;
+    f.iva = iva;
+    f.total = neto + iva;
+    f.vencimiento = data.vencimiento;
+    f.responsable = (data.responsable || "").trim();
+    f.concepto = (data.concepto || "").trim();
+    if (f.montoPagado > f.total) f.montoPagado = f.total;
+    f.pagada = f.total > 0 && f.montoPagado >= f.total;
+    saveData();
+    state.editingFolio = null;
+    renderAll();
+    showToast("Factura folio " + f.folio + " actualizada.");
+    return true;
+  }
+
+  var FACTURAS_SORT_ACCESSORS = {
+    folio: { type: "number", get: function(f){ return f.folio; } },
+    razonSocial: { type: "text", get: function(f){ return f.razonSocial; } },
+    rut: { type: "text", get: function(f){ return f.rut; } },
+    neto: { type: "number", get: function(f){ return f.neto; } },
+    iva: { type: "number", get: function(f){ return f.iva; } },
+    total: { type: "number", get: function(f){ return f.total; } },
+    _pagado: { type: "number", get: function(f){ return montoPagadoDe(f); } },
+    _saldo: { type: "number", get: function(f){ return saldoDe(f); } },
+    vencimiento: { type: "date", get: function(f){ return f.vencimiento; } },
+    _estado: { type: "text", get: function(f){ return ESTADO_LABEL[estadoDe(f)]; } },
+    _responsable: { type: "text", get: function(f){ return f.responsable || ""; } },
+    _concepto: { type: "text", get: function(f){ return f.concepto || ""; } }
+  };
+
+  function gcalUrl(f){
+    var d = new Date(f.vencimiento);
+    var ymd = d.toISOString().slice(0,10).replace(/-/g,"");
+    var next = new Date(d.getTime() + 86400000).toISOString().slice(0,10).replace(/-/g,"");
+    var text = "Vencimiento factura folio " + f.folio + " - " + f.razonSocial;
+    var details = "Cliente: " + f.razonSocial + " (" + f.rut + ")\\nSaldo: " + fmtCLP(saldoDe(f)) + "\\nDMZ Tax Advisors";
+    return "https://calendar.google.com/calendar/render?action=TEMPLATE&text=" + encodeURIComponent(text) +
+      "&dates=" + ymd + "/" + next + "&details=" + encodeURIComponent(details);
   }
 
   function renderTable(){
@@ -1593,15 +2173,33 @@
       .filter(matchesFilter)
       .filter(matchesQuery)
       .sort(function(a,b){ return new Date(b.emision) - new Date(a.emision); });
+    rows = applySort(rows, state.sort.facturas, FACTURAS_SORT_ACCESSORS);
+    updateSortHeaderUI("table-facturas", "facturas");
 
     document.getElementById("row-count").textContent =
       rows.length + (rows.length === 1 ? " factura" : " facturas");
+
+    var totalsFoot = document.getElementById("invoice-totals");
+    if (rows.length){
+      var tN=0,tI=0,tT=0,tP=0,tS=0;
+      rows.forEach(function(f){ tN+=f.neto; tI+=f.iva; tT+=f.total; tP+=montoPagadoDe(f); tS+=saldoDe(f); });
+      totalsFoot.innerHTML = '<tr class="totals-row">' +
+        '<td colspan="3">Totales (' + rows.length + ')</td>' +
+        '<td class="num tabular">' + fmtCLP(tN) + '</td>' +
+        '<td class="num tabular">' + fmtCLP(tI) + '</td>' +
+        '<td class="num tabular">' + fmtCLP(tT) + '</td>' +
+        '<td class="num tabular">' + fmtCLP(tP) + '</td>' +
+        '<td class="num tabular">' + fmtCLP(tS) + '</td>' +
+        '<td></td><td></td><td></td><td></td><td></td></tr>';
+    } else {
+      totalsFoot.innerHTML = "";
+    }
 
     if (!rows.length){
       var tr = document.createElement("tr");
       tr.className = "empty-row";
       var td = document.createElement("td");
-      td.colSpan = 11;
+      td.colSpan = 13;
       td.textContent = "No hay facturas que coincidan con el filtro.";
       tr.appendChild(td);
       tbody.appendChild(tr);
@@ -1615,6 +2213,82 @@
       var parcial = esParcial(f);
       var tr = document.createElement("tr");
 
+      if (state.editingFolio === f.folio){
+        tr.innerHTML =
+          '<td class="tabular">' + f.folio + '</td>' +
+          '<td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>';
+        var razonTd = tr.children[1], rutTd = tr.children[2], netoTd = tr.children[3],
+            ivaTd = tr.children[4], totalTd = tr.children[5], vencTd = tr.children[8],
+            responsableTd = tr.children[10], conceptoTd = tr.children[11], editActionTd = tr.children[12];
+
+        var conceptoInput = document.createElement("input");
+        conceptoInput.type = "text"; conceptoInput.className = "contact-input"; conceptoInput.style.width = "220px";
+        conceptoInput.placeholder = "Ej: Nota de cobro notaría 20/09";
+        conceptoInput.value = f.concepto || "";
+        conceptoTd.appendChild(conceptoInput);
+
+        var respInput = document.createElement("input");
+        respInput.type = "text"; respInput.className = "contact-input"; respInput.style.width = "130px";
+        respInput.placeholder = "Nombre";
+        respInput.value = f.responsable || "";
+        responsableTd.appendChild(respInput);
+
+        var razonInput = document.createElement("input");
+        razonInput.type = "text"; razonInput.className = "contact-input"; razonInput.value = f.razonSocial;
+        razonTd.appendChild(razonInput);
+
+        var rutInput = document.createElement("input");
+        rutInput.type = "text"; rutInput.className = "contact-input"; rutInput.style.width = "110px"; rutInput.value = f.rut;
+        rutTd.appendChild(rutInput);
+
+        var netoInput = document.createElement("input");
+        netoInput.type = "number"; netoInput.className = "pago-input"; netoInput.min = "0"; netoInput.value = f.neto;
+        netoTd.appendChild(netoInput);
+
+        var ivaInput = document.createElement("input");
+        ivaInput.type = "number"; ivaInput.className = "pago-input"; ivaInput.min = "0"; ivaInput.value = f.iva;
+        ivaTd.appendChild(ivaInput);
+
+        totalTd.innerHTML = '<strong class="tabular">' + fmtCLP(f.neto + f.iva) + '</strong>';
+        function recalcTotalPreview(){
+          var n = Number(netoInput.value) || 0, i = Number(ivaInput.value) || 0;
+          totalTd.querySelector("strong").textContent = fmtCLP(n + i);
+        }
+        netoInput.addEventListener("input", recalcTotalPreview);
+        ivaInput.addEventListener("input", recalcTotalPreview);
+
+        var vencInput = document.createElement("input");
+        vencInput.type = "date"; vencInput.className = "contact-input"; vencInput.style.width = "140px";
+        vencInput.value = String(f.vencimiento).slice(0,10);
+        vencTd.appendChild(vencInput);
+
+        var saveEditBtn = document.createElement("button");
+        saveEditBtn.className = "pago-save-btn";
+        saveEditBtn.type = "button";
+        saveEditBtn.textContent = "Guardar";
+        saveEditBtn.addEventListener("click", function(){
+          saveInvoiceEdit(f, {
+            razon: razonInput.value, rut: rutInput.value,
+            neto: netoInput.value, iva: ivaInput.value,
+            vencimiento: vencInput.value, responsable: respInput.value,
+            concepto: conceptoInput.value
+          });
+        });
+        var cancelEditBtn = document.createElement("button");
+        cancelEditBtn.className = "delete-btn";
+        cancelEditBtn.type = "button";
+        cancelEditBtn.textContent = "Cancelar";
+        cancelEditBtn.addEventListener("click", function(){
+          state.editingFolio = null;
+          renderTable();
+        });
+        editActionTd.appendChild(saveEditBtn);
+        editActionTd.appendChild(cancelEditBtn);
+
+        tbody.appendChild(tr);
+        return;
+      }
+
       tr.innerHTML =
         '<td class="tabular">' + f.folio + '</td>' +
         '<td class="razon">' + f.razonSocial + '</td>' +
@@ -1626,8 +2300,59 @@
         '<td class="num tabular">' + fmtCLP(saldo) + '</td>' +
         '<td>' + fmtDate(new Date(f.vencimiento)) + '</td>' +
         '<td><span class="badge ' + estado + '"><span class="dot"></span>' + ESTADO_LABEL[estado] +
-          '</span>' + (parcial ? ' <span class="badge parcial"><span class="dot"></span>Parcial</span>' : '') + '</td>' +
+          '</span>' + (parcial ? ' <span class="badge parcial"><span class="dot"></span>Parcial</span>' : '') +
+          (f.tipoDoc === "56" ? ' <span class="badge tipo-nd"><span class="dot"></span>ND</span>' : '') + '</td>' +
+        '<td></td>' +
+        '<td></td>' +
         '<td></td>';
+
+      var responsableTd = tr.children[10];
+      var respWrap = document.createElement("div");
+      respWrap.className = "contact-cell";
+      var respInput = document.createElement("input");
+      respInput.type = "text";
+      respInput.className = "contact-input";
+      respInput.style.width = "120px";
+      respInput.placeholder = "Nombre";
+      respInput.value = f.responsable || "";
+      var respSaveBtn = document.createElement("button");
+      respSaveBtn.className = "pago-save-btn";
+      respSaveBtn.type = "button";
+      respSaveBtn.textContent = "Guardar";
+      function saveResponsable(){
+        f.responsable = respInput.value.trim();
+        saveData();
+        showToast("Responsable de folio " + f.folio + ": " + (f.responsable || "(vacío)") + ".");
+      }
+      respSaveBtn.addEventListener("click", saveResponsable);
+      respInput.addEventListener("keydown", function(ev){ if (ev.key === "Enter") saveResponsable(); });
+      respWrap.appendChild(respInput);
+      respWrap.appendChild(respSaveBtn);
+      responsableTd.appendChild(respWrap);
+
+      var conceptoTd = tr.children[11];
+      var concWrap = document.createElement("div");
+      concWrap.className = "contact-cell";
+      var concInput = document.createElement("input");
+      concInput.type = "text";
+      concInput.className = "contact-input";
+      concInput.style.width = "180px";
+      concInput.placeholder = "Ej: Nota de cobro notaría";
+      concInput.value = f.concepto || "";
+      var concSaveBtn = document.createElement("button");
+      concSaveBtn.className = "pago-save-btn";
+      concSaveBtn.type = "button";
+      concSaveBtn.textContent = "Guardar";
+      function saveConcepto(){
+        f.concepto = concInput.value.trim();
+        saveData();
+        showToast("Concepto/glosa de folio " + f.folio + " guardado.");
+      }
+      concSaveBtn.addEventListener("click", saveConcepto);
+      concInput.addEventListener("keydown", function(ev){ if (ev.key === "Enter") saveConcepto(); });
+      concWrap.appendChild(concInput);
+      concWrap.appendChild(concSaveBtn);
+      conceptoTd.appendChild(concWrap);
 
       var actionTd = tr.lastElementChild;
       if (!f.pagada){
@@ -1658,11 +2383,40 @@
         btn.textContent = "Marcar pagada";
         btn.addEventListener("click", function(){ markPaid(f); });
 
+        var gcal = document.createElement("a");
+        gcal.className = "gcal-btn";
+        gcal.href = gcalUrl(f);
+        gcal.target = "_blank";
+        gcal.rel = "noopener";
+        gcal.textContent = "📅 Google Calendar";
+
         wrap.appendChild(input);
         wrap.appendChild(saveBtn);
         wrap.appendChild(btn);
+        wrap.appendChild(gcal);
         actionTd.appendChild(wrap);
       }
+
+      var editBtn = document.createElement("button");
+      editBtn.className = "pago-save-btn";
+      editBtn.type = "button";
+      editBtn.textContent = "Editar";
+      editBtn.title = "Editar los datos de esta factura";
+      editBtn.addEventListener("click", function(){
+        state.editingFolio = f.folio;
+        renderTable();
+      });
+      actionTd.appendChild(editBtn);
+
+      var rejBtn = document.createElement("button");
+      rejBtn.className = "delete-btn";
+      rejBtn.type = "button";
+      rejBtn.textContent = f.rechazada ? "Quitar rechazo" : "Rechazada";
+      rejBtn.title = f.rechazada
+        ? "El cliente había rechazado este documento — clic para revertir"
+        : "Marcar que el cliente rechazó/reclamó este documento";
+      rejBtn.addEventListener("click", function(){ toggleRechazada(f); });
+      actionTd.appendChild(rejBtn);
 
       var delBtn = document.createElement("button");
       delBtn.className = "delete-btn";
@@ -1726,6 +2480,30 @@
     var sorted = pendientes.slice().sort(function(a,b){
       return daysUntil(a.vencimiento) - daysUntil(b.vencimiento);
     });
+    var COBRANZA_SORT_ACCESSORS = {
+      folio: { type: "number", get: function(f){ return f.folio; } },
+      razonSocial: { type: "text", get: function(f){ return f.razonSocial; } },
+      rut: { type: "text", get: function(f){ return f.rut; } },
+      total: { type: "number", get: function(f){ return f.total; } },
+      _saldo: { type: "number", get: function(f){ return saldoDe(f); } },
+      vencimiento: { type: "date", get: function(f){ return f.vencimiento; } },
+      _dias: { type: "number", get: function(f){ return daysUntil(f.vencimiento); } },
+      _estado: { type: "text", get: function(f){ return ESTADO_LABEL[estadoDe(f)]; } }
+    };
+    sorted = applySort(sorted, state.sort.cobranza, COBRANZA_SORT_ACCESSORS);
+    updateSortHeaderUI("table-cobranza", "cobranza");
+
+    var cobranzaTotals = document.getElementById("cobranza-totals");
+    if (sorted.length){
+      var ctT=0, ctS=0;
+      sorted.forEach(function(f){ ctT+=f.total; ctS+=saldoDe(f); });
+      cobranzaTotals.innerHTML = '<tr class="totals-row"><td colspan="3">Totales (' + sorted.length + ')</td>' +
+        '<td class="num tabular">' + fmtCLP(ctT) + '</td>' +
+        '<td class="num tabular">' + fmtCLP(ctS) + '</td>' +
+        '<td></td><td></td><td></td><td></td></tr>';
+    } else {
+      cobranzaTotals.innerHTML = "";
+    }
 
     var tbody = document.getElementById("cobranza-body");
     tbody.innerHTML = "";
@@ -1756,7 +2534,16 @@
         btn.type = "button";
         btn.textContent = "Marcar pagada";
         btn.addEventListener("click", function(){ markPaid(f); });
+        var gcal = document.createElement("a");
+        gcal.className = "gcal-btn";
+        gcal.href = gcalUrl(f);
+        gcal.target = "_blank";
+        gcal.rel = "noopener";
+        gcal.style.marginLeft = "6px";
+        gcal.textContent = "📅";
+        gcal.title = "Agregar vencimiento a Google Calendar";
         tr.lastElementChild.appendChild(btn);
+        tr.lastElementChild.appendChild(gcal);
         tbody.appendChild(tr);
       });
     }
@@ -1765,11 +2552,54 @@
     var navBadge = document.getElementById("nav-badge-cobranza");
     if (nUrgentes > 0){ navBadge.textContent = nUrgentes; navBadge.hidden = false; }
     else { navBadge.hidden = true; }
+
+    if (state.kanbanMode) renderCobranzaKanban(pendientes);
+  }
+
+  function renderCobranzaKanban(pendientes){
+    var cols = [
+      { key: "al-dia", label: "Al día" },
+      { key: "por-vencer", label: "Por vencer" },
+      { key: "vencido", label: "Vencido" },
+      { key: "pagada", label: "Pagada (arrastra aquí)" }
+    ];
+    var board = document.getElementById("cobranza-kanban");
+    board.innerHTML = cols.map(function(col){
+      var cards = col.key === "pagada" ? [] : pendientes.filter(function(f){ return estadoDe(f) === col.key; });
+      return '<div class="kanban-col" data-col="' + col.key + '">' +
+        '<h3>' + col.label + '<span>' + cards.length + '</span></h3>' +
+        '<div class="kanban-cards">' + cards.map(function(f){
+          return '<div class="kanban-card" draggable="true" data-folio="' + f.folio + '">' +
+            '<div class="k1">Folio ' + f.folio + ' — ' + f.razonSocial + '</div>' +
+            '<div class="k2">' + fmtCLP(saldoDe(f)) + ' · vence ' + fmtDate(new Date(f.vencimiento)) + '</div>' +
+          '</div>';
+        }).join("") + '</div></div>';
+    }).join("");
+
+    board.querySelectorAll(".kanban-card").forEach(function(card){
+      card.addEventListener("dragstart", function(ev){
+        ev.dataTransfer.setData("text/plain", card.getAttribute("data-folio"));
+      });
+    });
+    board.querySelectorAll(".kanban-col").forEach(function(col){
+      col.addEventListener("dragover", function(ev){
+        if (col.getAttribute("data-col") === "pagada"){ ev.preventDefault(); col.classList.add("drop-over"); }
+      });
+      col.addEventListener("dragleave", function(){ col.classList.remove("drop-over"); });
+      col.addEventListener("drop", function(ev){
+        ev.preventDefault();
+        col.classList.remove("drop-over");
+        if (col.getAttribute("data-col") !== "pagada") return;
+        var folio = ev.dataTransfer.getData("text/plain");
+        var f = state.invoices.filter(function(x){ return String(x.folio) === String(folio); })[0];
+        if (f){ markPaid(f); }
+      });
+    });
   }
 
   var EMPRESA_NOMBRE = "DMZ Tax Advisors";
 
-  function buildCobranzaMailto(c){
+  function buildCobranzaContent(c){
     var pendientes = c.invoices.filter(function(f){ return saldoDe(f) > 0; })
       .sort(function(a,b){ return daysUntil(a.vencimiento) - daysUntil(b.vencimiento); });
     var filas = pendientes.map(function(f){
@@ -1788,9 +2618,37 @@
       "Agradecemos regularizar el pago a la brevedad, o contactarnos si ya fue realizado para actualizar nuestros registros.\n\n" +
       "Saludos cordiales,\n" + EMPRESA_NOMBRE;
 
+    return { subject: subject, body: body };
+  }
+
+  function buildCobranzaMailto(c){
+    var content = buildCobranzaContent(c);
     return "mailto:" + encodeURIComponent(getContactEmail(c.rut)) +
-      "?subject=" + encodeURIComponent(subject) +
-      "&body=" + encodeURIComponent(body);
+      "?subject=" + encodeURIComponent(content.subject) +
+      "&body=" + encodeURIComponent(content.body);
+  }
+
+  function sendCobranzaDirecto(c, btn){
+    var email = getContactEmail(c.rut);
+    var content = buildCobranzaContent(c);
+    var original = btn.textContent;
+    btn.textContent = "Enviando…";
+    btn.style.pointerEvents = "none";
+    window.emailjs.send(state.emailjsConfig.service, state.emailjsConfig.template, {
+      to_email: email,
+      to_name: c.razonSocial,
+      subject: content.subject,
+      message: content.body
+    }).then(function(){
+      logEmailSent(c.rut, email);
+      showToast("Correo enviado a " + c.razonSocial + " (" + email + ").");
+      renderClientes();
+    }).catch(function(err){
+      btn.textContent = original;
+      btn.style.pointerEvents = "";
+      showToast("No se pudo enviar por EmailJS. Se abrirá tu correo como respaldo.");
+      window.location.href = buildCobranzaMailto(c);
+    });
   }
 
   function renderClientes(){
@@ -1802,7 +2660,7 @@
       }
       var c = byClient[key];
       c.n++;
-      c.total += f.total;
+      c.total += facturadoDe(f);
       c.invoices.push(f);
       var estado = estadoDe(f);
       var saldo = saldoDe(f);
@@ -1815,8 +2673,33 @@
     var list = Object.keys(byClient).map(function(k){ return byClient[k]; })
       .sort(function(a,b){ return b.pendiente - a.pendiente; });
 
+    var CLIENTES_SORT_ACCESSORS = {
+      razonSocial: { type: "text", get: function(c){ return c.razonSocial; } },
+      n: { type: "number", get: function(c){ return c.n; } },
+      total: { type: "number", get: function(c){ return c.total; } },
+      pendiente: { type: "number", get: function(c){ return c.pendiente; } },
+      vencido: { type: "number", get: function(c){ return c.vencido; } },
+      peor: { type: "text", get: function(c){ return ESTADO_LABEL[c.peor]; } }
+    };
+    list = applySort(list, state.sort.clientes, CLIENTES_SORT_ACCESSORS);
+    updateSortHeaderUI("table-clientes", "clientes");
+
     document.getElementById("clientes-count").textContent =
       list.length + (list.length === 1 ? " cliente" : " clientes");
+
+    var clientesTotals = document.getElementById("clientes-totals");
+    if (list.length){
+      var clT=0, clP=0, clV=0;
+      list.forEach(function(c){ clT+=c.total; clP+=c.pendiente; clV+=c.vencido; });
+      clientesTotals.innerHTML = '<tr class="totals-row"><td>Totales (' + list.length + ')</td>' +
+        '<td class="num tabular">' + list.reduce(function(s,c){return s+c.n;},0) + '</td>' +
+        '<td class="num tabular">' + fmtCLP(clT) + '</td>' +
+        '<td class="num tabular">' + fmtCLP(clP) + '</td>' +
+        '<td class="num tabular">' + fmtCLP(clV) + '</td>' +
+        '<td></td><td></td><td></td></tr>';
+    } else {
+      clientesTotals.innerHTML = "";
+    }
 
     var tbody = document.getElementById("clientes-body");
     tbody.innerHTML = "";
@@ -1862,22 +2745,113 @@
       wrap.appendChild(saveBtn);
       emailTd.appendChild(wrap);
 
-      var sendBtn = document.createElement("a");
-      sendBtn.className = "send-cobranza-btn";
       var email = getContactEmail(c.rut);
-      if (c.pendiente > 0 && email){
-        sendBtn.href = buildCobranzaMailto(c);
+      var sendBtn;
+      if (c.pendiente > 0 && email && emailjsListo()){
+        sendBtn = document.createElement("button");
+        sendBtn.type = "button";
+        sendBtn.className = "send-cobranza-btn";
         sendBtn.textContent = "Enviar cobranza";
+        sendBtn.addEventListener("click", function(){ sendCobranzaDirecto(c, sendBtn); });
       } else {
-        sendBtn.href = "javascript:void(0)";
-        sendBtn.setAttribute("aria-disabled", "true");
-        sendBtn.style.opacity = ".4";
-        sendBtn.style.pointerEvents = "none";
-        sendBtn.textContent = c.pendiente > 0 ? "Falta email" : "Sin saldo";
+        sendBtn = document.createElement("a");
+        sendBtn.className = "send-cobranza-btn";
+        if (c.pendiente > 0 && email){
+          sendBtn.href = buildCobranzaMailto(c);
+          sendBtn.textContent = "Enviar cobranza";
+        } else {
+          sendBtn.href = "javascript:void(0)";
+          sendBtn.setAttribute("aria-disabled", "true");
+          sendBtn.style.opacity = ".4";
+          sendBtn.style.pointerEvents = "none";
+          sendBtn.textContent = c.pendiente > 0 ? "Falta email" : "Sin saldo";
+        }
       }
       actionTd.appendChild(sendBtn);
 
+      var histCount = emailHistoryDe(c.rut).length;
+      if (histCount){
+        var histSpan = document.createElement("span");
+        histSpan.className = "saldo-txt";
+        histSpan.style.marginLeft = "6px";
+        var hist = emailHistoryDe(c.rut);
+        var ultima = fmtDate(new Date(hist[hist.length-1].fecha));
+        histSpan.title = hist.map(function(h){ return fmtDate(new Date(h.fecha)) + " → " + h.para; }).join("\n");
+        histSpan.textContent = histCount + " correo(s) enviado(s) · última " + ultima;
+        actionTd.appendChild(histSpan);
+      }
+
+      var crossBtn = document.createElement("button");
+      crossBtn.className = "crossref-btn";
+      crossBtn.type = "button";
+      crossBtn.style.marginLeft = "6px";
+      crossBtn.textContent = "Ver facturas →";
+      crossBtn.title = "Ir a la pestaña Facturas filtrada por este cliente";
+      crossBtn.addEventListener("click", function(){
+        state.query = c.rut;
+        document.getElementById("search").value = c.rut;
+        state.filter = "todas";
+        document.querySelectorAll(".chip").forEach(function(ch){
+          ch.setAttribute("aria-pressed", ch.getAttribute("data-filter") === "todas" ? "true" : "false");
+        });
+        setView("facturas");
+        renderTable();
+      });
+      actionTd.appendChild(crossBtn);
+
+      var notesBtn = document.createElement("button");
+      notesBtn.className = "crossref-btn";
+      notesBtn.type = "button";
+      notesBtn.style.marginLeft = "6px";
+      var nNotes = notesDe(c.rut).length;
+      notesBtn.textContent = "📝 Notas" + (nNotes ? " (" + nNotes + ")" : "");
+      notesBtn.title = "Bitácora interna de gestión con este cliente (no se envía a nadie)";
+      notesBtn.addEventListener("click", function(){
+        state.notesOpenRut = state.notesOpenRut === c.rut ? null : c.rut;
+        renderClientes();
+      });
+      actionTd.appendChild(notesBtn);
+
       tbody.appendChild(tr);
+
+      if (state.notesOpenRut === c.rut){
+        var notesTr = document.createElement("tr");
+        var notesTd = document.createElement("td");
+        notesTd.colSpan = 8;
+        var notesWrap = document.createElement("div");
+        notesWrap.className = "client-notes";
+        var notas = notesDe(c.rut);
+        notesWrap.innerHTML = notas.length
+          ? notas.slice().reverse().map(function(n){
+              return '<div class="note-item"><span class="nd">' + fmtDate(new Date(n.fecha)) + '</span> — ' + n.texto + '</div>';
+            }).join("")
+          : '<div class="note-item nd">Sin notas todavía.</div>';
+        var addRow = document.createElement("div");
+        addRow.className = "contact-cell";
+        addRow.style.marginTop = "8px";
+        var noteInput = document.createElement("input");
+        noteInput.type = "text";
+        noteInput.className = "contact-input";
+        noteInput.style.width = "220px";
+        noteInput.placeholder = "Ej: llamó el 23/09, promete pagar el viernes";
+        var noteBtn = document.createElement("button");
+        noteBtn.className = "pago-save-btn";
+        noteBtn.type = "button";
+        noteBtn.textContent = "Agregar nota";
+        function addNoteHandler(){
+          if (!noteInput.value.trim()) return;
+          addNote(c.rut, noteInput.value);
+          renderClientes();
+        }
+        noteBtn.addEventListener("click", addNoteHandler);
+        noteInput.addEventListener("keydown", function(ev){ if (ev.key === "Enter") addNoteHandler(); });
+        addRow.appendChild(noteInput);
+        addRow.appendChild(noteBtn);
+        notesWrap.appendChild(addRow);
+        notesTd.appendChild(notesWrap);
+        notesTr.appendChild(notesTd);
+        tbody.appendChild(notesTr);
+      }
     });
   }
 
@@ -1892,27 +2866,232 @@
     });
   }
 
-  function renderReportes(){
-    var months = reportesMonths();
-    var tbody = document.getElementById("reportes-body");
-    tbody.innerHTML = "";
-    if (!months.length){
-      tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Sin datos para el filtro seleccionado.</td></tr>';
-      return;
-    }
-    months.forEach(function(mo){
+  function reportesRows(){
+    return reportesMonths().map(function(mo){
       var invs = visibleInvoices().filter(function(f){ return monthKey(f.emision) === mo.key; });
-      var facturado = invs.reduce(function(s,f){ return s + f.total; }, 0);
+      var facturado = invs.reduce(function(s,f){ return s + facturadoDe(f); }, 0);
       var pagado = invs.reduce(function(s,f){ return s + montoPagadoDe(f); }, 0);
-      var pendiente = facturado - pagado;
-      var tr = document.createElement("tr");
-      tr.innerHTML =
-        '<td>' + mo.label + '</td>' +
-        '<td class="num tabular">' + fmtCLP(facturado) + '</td>' +
-        '<td class="num tabular">' + fmtCLP(pagado) + '</td>' +
-        '<td class="num tabular">' + fmtCLP(pendiente) + '</td>' +
-        '<td class="num tabular">' + invs.length + '</td>';
-      tbody.appendChild(tr);
+      return { label: mo.label, facturado: facturado, pagado: pagado, pendiente: facturado - pagado, n: invs.length };
+    });
+  }
+
+  function renderReportes(){
+    var rows = reportesRows();
+    var tbody = document.getElementById("reportes-body");
+    var totalsFoot = document.getElementById("reportes-totals");
+    tbody.innerHTML = "";
+    if (!rows.length){
+      tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Sin datos para el filtro seleccionado.</td></tr>';
+      totalsFoot.innerHTML = "";
+    } else {
+      rows.forEach(function(r){
+        var tr = document.createElement("tr");
+        tr.innerHTML =
+          '<td>' + r.label + '</td>' +
+          '<td class="num tabular">' + fmtCLP(r.facturado) + '</td>' +
+          '<td class="num tabular">' + fmtCLP(r.pagado) + '</td>' +
+          '<td class="num tabular">' + fmtCLP(r.pendiente) + '</td>' +
+          '<td class="num tabular">' + r.n + '</td>';
+        tbody.appendChild(tr);
+      });
+      var tF=0,tPg=0,tPd=0,tN=0;
+      rows.forEach(function(r){ tF+=r.facturado; tPg+=r.pagado; tPd+=r.pendiente; tN+=r.n; });
+      totalsFoot.innerHTML = '<tr class="totals-row"><td>Totales</td>' +
+        '<td class="num tabular">' + fmtCLP(tF) + '</td>' +
+        '<td class="num tabular">' + fmtCLP(tPg) + '</td>' +
+        '<td class="num tabular">' + fmtCLP(tPd) + '</td>' +
+        '<td class="num tabular">' + tN + '</td></tr>';
+    }
+    renderLineChart(rows);
+    renderHistogram();
+    renderRadarChart(rows);
+  }
+
+  function renderLineChart(rows){
+    var svg = document.getElementById("line-chart");
+    var svgns = "http://www.w3.org/2000/svg";
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    svg.setAttribute("viewBox", "0 0 640 220");
+    if (!rows.length) return;
+
+    var W=640,H=220,padL=52,padR=16,padT=16,padB=30;
+    var plotW=W-padL-padR, plotH=H-padT-padB;
+    var maxVal = Math.max.apply(null, rows.map(function(r){ return r.facturado; }).concat([1]));
+    var niceMax = Math.ceil(maxVal/1000000)*1000000 || 1000000;
+    var series = [
+      { key:"facturado", color:"var(--accent)", label:"Facturado" },
+      { key:"pagado", color:"var(--good)", label:"Pagado" },
+      { key:"pendiente", color:"var(--warning)", label:"Pendiente" }
+    ];
+    var stepX = rows.length > 1 ? plotW/(rows.length-1) : 0;
+
+    var ticks=4;
+    for (var t=0;t<=ticks;t++){
+      var val = niceMax*t/ticks;
+      var y = padT+plotH-(val/niceMax)*plotH;
+      var line = document.createElementNS(svgns,"line");
+      line.setAttribute("x1",padL); line.setAttribute("x2",W-padR);
+      line.setAttribute("y1",y); line.setAttribute("y2",y);
+      line.setAttribute("class","grid-line");
+      svg.appendChild(line);
+      var label = document.createElementNS(svgns,"text");
+      label.setAttribute("x",padL-8); label.setAttribute("y",y+3);
+      label.setAttribute("text-anchor","end"); label.setAttribute("class","axis-label");
+      label.textContent = val>=1000000 ? (val/1000000).toFixed(val%1000000===0?0:1)+"M" : Math.round(val/1000)+"k";
+      svg.appendChild(label);
+    }
+
+    series.forEach(function(s){
+      var pts = rows.map(function(r,i){
+        var x = padL + i*stepX;
+        var y = padT+plotH-(Math.max(0,r[s.key])/niceMax)*plotH;
+        return x+","+y;
+      });
+      var poly = document.createElementNS(svgns,"polyline");
+      poly.setAttribute("points", pts.join(" "));
+      poly.setAttribute("fill","none");
+      poly.setAttribute("stroke", s.color);
+      poly.setAttribute("stroke-width","2.5");
+      poly.setAttribute("stroke-linejoin","round");
+      poly.setAttribute("stroke-linecap","round");
+      svg.appendChild(poly);
+      rows.forEach(function(r,i){
+        var x = padL + i*stepX;
+        var y = padT+plotH-(Math.max(0,r[s.key])/niceMax)*plotH;
+        var c = document.createElementNS(svgns,"circle");
+        c.setAttribute("cx",x); c.setAttribute("cy",y); c.setAttribute("r","3");
+        c.setAttribute("fill", s.color);
+        var titleEl = document.createElementNS(svgns,"title");
+        titleEl.textContent = s.label + " " + r.label + ": " + fmtCLP(r[s.key]);
+        c.appendChild(titleEl);
+        svg.appendChild(c);
+      });
+    });
+
+    rows.forEach(function(r,i){
+      var x = padL + i*stepX;
+      var xlabel = document.createElementNS(svgns,"text");
+      xlabel.setAttribute("x",x); xlabel.setAttribute("y",H-padB+18);
+      xlabel.setAttribute("text-anchor","middle"); xlabel.setAttribute("class","axis-label");
+      xlabel.textContent = r.label;
+      svg.appendChild(xlabel);
+    });
+
+    var legend = document.getElementById("line-chart-legend");
+    legend.innerHTML = series.map(function(s){
+      return '<div class="donut-legend-row"><span class="k"><i style="background:' + s.color + '"></i>' + s.label + '</span></div>';
+    }).join("");
+  }
+
+  function renderHistogram(){
+    var svg = document.getElementById("histogram");
+    var svgns = "http://www.w3.org/2000/svg";
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    svg.setAttribute("viewBox","0 0 400 220");
+    var invs = visibleInvoices();
+    if (!invs.length) return;
+
+    var maxTotal = Math.max.apply(null, invs.map(function(f){ return f.total; }));
+    var nBuckets = 6;
+    var bucketSize = Math.ceil((maxTotal || 1) / nBuckets / 100000) * 100000 || 100000;
+    var buckets = new Array(nBuckets).fill(0);
+    invs.forEach(function(f){
+      var idx = Math.min(nBuckets-1, Math.floor(f.total / bucketSize));
+      buckets[idx]++;
+    });
+
+    var W=400,H=220,padL=28,padR=10,padT=16,padB=36;
+    var plotW=W-padL-padR, plotH=H-padT-padB;
+    var maxCount = Math.max.apply(null, buckets.concat([1]));
+    var barGap=6, barW=(plotW/nBuckets)-barGap;
+
+    buckets.forEach(function(count,i){
+      var barH = (count/maxCount)*plotH;
+      var x = padL + i*(plotW/nBuckets) + barGap/2;
+      var y = padT+plotH-barH;
+      var rect = document.createElementNS(svgns,"rect");
+      rect.setAttribute("x",x); rect.setAttribute("y",y);
+      rect.setAttribute("width",Math.max(barW,2)); rect.setAttribute("height",Math.max(barH,0));
+      rect.setAttribute("rx",3); rect.setAttribute("class","bar");
+      var titleEl = document.createElementNS(svgns,"title");
+      var rangeLo = fmtCLP(i*bucketSize), rangeHi = fmtCLP((i+1)*bucketSize);
+      titleEl.textContent = rangeLo + " - " + rangeHi + ": " + count + (count===1?" factura":" facturas");
+      rect.appendChild(titleEl);
+      svg.appendChild(rect);
+      if (count>0){
+        var vlabel = document.createElementNS(svgns,"text");
+        vlabel.setAttribute("x",x+barW/2); vlabel.setAttribute("y",y-5);
+        vlabel.setAttribute("text-anchor","middle"); vlabel.setAttribute("class","bar-label");
+        vlabel.textContent = count;
+        svg.appendChild(vlabel);
+      }
+      var xlabel = document.createElementNS(svgns,"text");
+      xlabel.setAttribute("x",x+barW/2); xlabel.setAttribute("y",H-padB+16);
+      xlabel.setAttribute("text-anchor","middle"); xlabel.setAttribute("class","axis-label");
+      xlabel.setAttribute("font-size","8.5");
+      var m = bucketSize >= 1000000 ? (bucketSize*i/1000000).toFixed(1)+"M" : Math.round(bucketSize*i/1000)+"k";
+      xlabel.textContent = m;
+      svg.appendChild(xlabel);
+    });
+  }
+
+  function renderRadarChart(rows){
+    var svg = document.getElementById("radar-chart");
+    var svgns = "http://www.w3.org/2000/svg";
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    svg.setAttribute("viewBox","0 0 320 320");
+    if (rows.length < 3) return;
+
+    var cx=160, cy=160, r=110;
+    var n = rows.length;
+    var maxVal = Math.max.apply(null, rows.map(function(row){ return row.facturado; }).concat([1]));
+
+    for (var ring=1; ring<=4; ring++){
+      var rr = r*ring/4;
+      var pts = [];
+      for (var i=0;i<n;i++){
+        var ang = -Math.PI/2 + i*(2*Math.PI/n);
+        pts.push((cx+rr*Math.cos(ang))+","+(cy+rr*Math.sin(ang)));
+      }
+      var poly = document.createElementNS(svgns,"polygon");
+      poly.setAttribute("points", pts.join(" "));
+      poly.setAttribute("fill","none");
+      poly.setAttribute("stroke","var(--gridline)");
+      poly.setAttribute("stroke-width","1");
+      svg.appendChild(poly);
+    }
+
+    var dataPts = rows.map(function(row,i){
+      var ang = -Math.PI/2 + i*(2*Math.PI/n);
+      var rr = (row.facturado/maxVal)*r;
+      return { x: cx+rr*Math.cos(ang), y: cy+rr*Math.sin(ang) };
+    });
+    var dataPoly = document.createElementNS(svgns,"polygon");
+    dataPoly.setAttribute("points", dataPts.map(function(p){ return p.x+","+p.y; }).join(" "));
+    dataPoly.setAttribute("fill","var(--accent-soft)");
+    dataPoly.setAttribute("stroke","var(--accent)");
+    dataPoly.setAttribute("stroke-width","2");
+    svg.appendChild(dataPoly);
+
+    dataPts.forEach(function(p,i){
+      var c = document.createElementNS(svgns,"circle");
+      c.setAttribute("cx",p.x); c.setAttribute("cy",p.y); c.setAttribute("r","3");
+      c.setAttribute("fill","var(--accent)");
+      var titleEl = document.createElementNS(svgns,"title");
+      titleEl.textContent = rows[i].label + ": " + fmtCLP(rows[i].facturado);
+      c.appendChild(titleEl);
+      svg.appendChild(c);
+    });
+
+    rows.forEach(function(row,i){
+      var ang = -Math.PI/2 + i*(2*Math.PI/n);
+      var lx = cx + (r+18)*Math.cos(ang);
+      var ly = cy + (r+18)*Math.sin(ang);
+      var label = document.createElementNS(svgns,"text");
+      label.setAttribute("x",lx); label.setAttribute("y",ly+3);
+      label.setAttribute("text-anchor","middle"); label.setAttribute("class","axis-label");
+      label.textContent = row.label;
+      svg.appendChild(label);
     });
   }
 
@@ -2003,6 +3182,90 @@
       showToast("facturas.json descargado con " + state.invoices.length + " facturas.");
     } catch(e){
       showToast("No se pudo generar la descarga en este visor.");
+    }
+  }
+
+  // --- Publicar directo en GitHub (API de Contents) ----------------------
+
+  function utf8ToBase64(str){
+    var utf8 = new TextEncoder().encode(str);
+    var binary = "";
+    utf8.forEach(function(b){ binary += String.fromCharCode(b); });
+    return btoa(binary);
+  }
+
+  function showPublishLog(html, isError){
+    var log = document.getElementById("publish-log");
+    log.hidden = false;
+    log.classList.toggle("error", !!isError);
+    log.innerHTML = html;
+  }
+
+  async function publishToGitHub(){
+    var cfg = state.githubConfig;
+    if (!cfg.owner || !cfg.repo || !cfg.token){
+      showPublishLog("Completa usuario, repositorio y token, y guarda la configuración antes de publicar.", true);
+      return;
+    }
+    var path = cfg.path || "facturas.json";
+    var branch = cfg.branch || "main";
+    var apiUrl = "https://api.github.com/repos/" + encodeURIComponent(cfg.owner) + "/" + encodeURIComponent(cfg.repo) + "/contents/" + path;
+    var btn = document.getElementById("publish-github-btn");
+    var originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "Publicando...";
+    try {
+      var sha = null;
+      var getResp = await fetch(apiUrl + "?ref=" + encodeURIComponent(branch), {
+        headers: { "Authorization": "token " + cfg.token, "Accept": "application/vnd.github+json" }
+      });
+      if (getResp.status === 200){
+        var getData = await getResp.json();
+        sha = getData.sha;
+      } else if (getResp.status !== 404){
+        var errBody = await getResp.text();
+        throw new Error("No se pudo leer el archivo actual en GitHub (código " + getResp.status + "). " + errBody.slice(0,200));
+      }
+
+      var json = buildFacturasJSON();
+      var body = {
+        message: "Actualiza facturas.json desde el dashboard (" + new Date().toLocaleString("es-CL") + ")",
+        content: utf8ToBase64(json),
+        branch: branch
+      };
+      if (sha) body.sha = sha;
+
+      var putResp = await fetch(apiUrl, {
+        method: "PUT",
+        headers: {
+          "Authorization": "token " + cfg.token,
+          "Accept": "application/vnd.github+json",
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(body)
+      });
+
+      if (putResp.status === 200 || putResp.status === 201){
+        showPublishLog(
+          "<strong>Publicado correctamente en GitHub</strong> (" + state.invoices.length + " facturas).<br>" +
+          "Las demás personas lo van a ver al recargar el link en 1-2 minutos."
+        );
+        showToast("facturas.json publicado en GitHub.");
+      } else {
+        var errText = await putResp.text();
+        var msg = "Error al publicar (código " + putResp.status + "). ";
+        if (putResp.status === 401) msg += "El token no es válido, no se guardó bien, o expiró.";
+        else if (putResp.status === 404) msg += "No encuentro ese repositorio o esa ruta — revisa usuario, repositorio y rama.";
+        else if (putResp.status === 403) msg += "El token no tiene permiso de escritura sobre este repositorio (revisa que el permiso sea 'Contents: Read and write' y que el repo esté incluido).";
+        else if (putResp.status === 409) msg += "El archivo cambió en GitHub justo en este momento — intenta de nuevo.";
+        else msg += errText.slice(0,200);
+        throw new Error(msg);
+      }
+    } catch(e){
+      showPublishLog(e.message || "No se pudo publicar en GitHub.", true);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = originalText;
     }
   }
 
@@ -2117,7 +3380,8 @@
         emision: emisionDate.toISOString(),
         vencimiento: vencimientoDate.toISOString(),
         pagada: false,
-        montoPagado: 0
+        montoPagado: 0,
+        tipoDoc: tipoDoc
       });
     }
 
@@ -2127,15 +3391,33 @@
     var ncSet = {};
     notasCredito.forEach(function(f){ ncSet[f] = true; });
 
-    var nuevas = [], duplicadas = 0, anuladas = 0;
+    var nuevas = [], duplicadas = 0, anuladas = 0, notasDebito = 0;
     candidatas.forEach(function(f){
       if (ncSet[f.folio]){ anuladas++; return; }
       if (folioExistente[f.folio]){ duplicadas++; return; }
       folioExistente[f.folio] = true; // evita duplicados dentro del mismo archivo
+      if (f.tipoDoc === "56") notasDebito++;
       nuevas.push(f);
     });
 
-    return { nuevas: nuevas, duplicadas: duplicadas, anuladas: anuladas, sinFecha: sinFecha };
+    // Una Nota de Crédito puede llegar en un mes posterior al de la factura
+    // original (ya cargada en meses anteriores). En ese caso no aparece en
+    // `candidatas` de este archivo, así que hay que buscarla directo en las
+    // facturas ya existentes y marcarla como anulada en vez de dejarla
+    // silenciosamente "al día" o "vencida".
+    var anuladasExistentes = 0;
+    notasCredito.forEach(function(folioRef){
+      var existente = state.invoices.filter(function(f){ return String(f.folio) === folioRef; })[0];
+      if (existente && !existente.anulada){
+        existente.anulada = true;
+        anuladasExistentes++;
+      }
+    });
+
+    return {
+      nuevas: nuevas, duplicadas: duplicadas, anuladas: anuladas,
+      anuladasExistentes: anuladasExistentes, notasDebito: notasDebito, sinFecha: sinFecha
+    };
   }
 
   function showImportLog(html, isError){
@@ -2153,27 +3435,179 @@
       showImportLog("No se pudo importar: " + e.message, true);
       return;
     }
-    if (!result.nuevas.length){
-      showImportLog(
-        "No se agregó ninguna factura nueva.<br>" +
-        "Duplicadas (ya existían): " + result.duplicadas + "<br>" +
-        "Anuladas por nota de crédito: " + result.anuladas +
-        (result.sinFecha ? "<br>Filas sin fecha reconocible: " + result.sinFecha : "")
-      );
-      return;
-    }
+
     state.invoices = state.invoices.concat(result.nuevas);
+    // parseRCV puede haber marcado facturas YA existentes como anuladas
+    // (una NC que llegó en un mes posterior al de la factura original), así
+    // que siempre guardamos y re-renderizamos aunque no haya facturas nuevas.
     saveData();
     renderAll();
+
     var totalNuevo = result.nuevas.reduce(function(s,f){ return s + f.total; }, 0);
-    showImportLog(
-      "<strong>" + result.nuevas.length + " factura(s) nueva(s) agregada(s)</strong> por " + fmtCLP(totalNuevo) + ".<br>" +
-      "Duplicadas omitidas (ya existían): " + result.duplicadas + "<br>" +
-      "Anuladas por nota de crédito (excluidas): " + result.anuladas +
-      (result.sinFecha ? "<br>Filas sin fecha reconocible (omitidas): " + result.sinFecha : "") +
-      "<br><br>Recuerda descargar el <strong>facturas.json</strong> actualizado (botón más abajo) y subirlo a GitHub para que el link publicado y el aviso semanal por correo vean estas facturas nuevas."
-    );
-    showToast(result.nuevas.length + " factura(s) nueva(s) importada(s).");
+    var lines = [];
+    if (result.nuevas.length){
+      lines.push("<strong>" + result.nuevas.length + " factura(s) nueva(s) agregada(s)</strong> por " + fmtCLP(totalNuevo) + ".");
+    } else {
+      lines.push("No se agregó ninguna factura nueva.");
+    }
+    lines.push("Duplicadas omitidas (ya existían): " + result.duplicadas + ".");
+    lines.push("Anuladas por nota de crédito, dentro del mismo archivo (excluidas, no se agregan): " + result.anuladas + ".");
+    if (result.anuladasExistentes){
+      lines.push("<strong>" + result.anuladasExistentes + " factura(s) que ya tenías cargadas fueron marcadas como \"Anulada (NC)\"</strong> porque llegó una nota de crédito que las referencia — revísalas en Facturas, quedan visibles con ese estado en vez de desaparecer.");
+    }
+    if (result.notasDebito){
+      lines.push(result.notasDebito + " nota(s) de débito detectada(s) — se agregaron como documento(s) propio(s) marcado(s) con la etiqueta \"ND\" junto al estado.");
+    }
+    if (result.sinFecha) lines.push("Filas sin fecha reconocible (omitidas): " + result.sinFecha + ".");
+    lines.push("<br>Recuerda descargar el <strong>facturas.json</strong> actualizado (botón más abajo) y subirlo a GitHub — o usar \"Guardar y publicar en GitHub\" si ya tienes el token — para que el link publicado y el aviso semanal por correo vean estos cambios.");
+    showImportLog(lines.join("<br>"));
+    showToast((result.nuevas.length || 0) + " factura(s) nueva(s) importada(s)" + (result.anuladasExistentes ? ", " + result.anuladasExistentes + " marcada(s) como anulada(s)" : "") + ".");
+  }
+
+  // --- Cartola bancaria: solo sugiere, nunca marca pagado sin confirmar ---
+
+  function parseCartola(text){
+    text = text.replace(/^﻿/, "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+    var lines = text.split("\n").filter(function(l){ return l.trim() !== ""; });
+    if (!lines.length) throw new Error("El archivo está vacío.");
+
+    var sep = detectSeparator(lines[0]);
+    var header = splitCSVLine(lines[0], sep).map(normalizeHeader);
+    function col(names){
+      for (var i = 0; i < names.length; i++){
+        var idx = header.indexOf(normalizeHeader(names[i]));
+        if (idx >= 0) return idx;
+      }
+      return -1;
+    }
+    var idx = {
+      fecha: col(["Fecha", "Fecha Transaccion", "Fecha Valuta", "Fecha Contable"]),
+      glosa: col(["Descripcion", "Detalle", "Glosa", "Movimiento", "Detalle Transaccion"]),
+      monto: col(["Monto", "Monto Abono", "Importe"]),
+      abono: col(["Abono", "Abonos", "Monto Abono", "Deposito", "Depositos"]),
+      cargo: col(["Cargo", "Cargos", "Monto Cargo", "Retiro", "Retiros"])
+    };
+    if (idx.fecha < 0 || (idx.monto < 0 && idx.abono < 0)){
+      throw new Error("No reconozco el formato de este archivo (¿tiene columnas de Fecha y Monto/Abono, con encabezados?).");
+    }
+
+    var movimientos = [];
+    for (var i = 1; i < lines.length; i++){
+      var cells = splitCSVLine(lines[i], sep);
+      if (cells.length < 2) continue;
+      var fechaISO = parseRCVDate(cells[idx.fecha]);
+      if (!fechaISO) continue;
+      var monto;
+      if (idx.abono >= 0){
+        monto = parseCLNumber(cells[idx.abono]);
+        if (!monto && idx.monto >= 0) monto = parseCLNumber(cells[idx.monto]);
+      } else {
+        monto = parseCLNumber(cells[idx.monto]);
+      }
+      monto = Math.abs(monto);
+      if (!monto) continue;
+      // Si hay columna de cargo separada y tiene valor en esa misma fila, es un
+      // egreso (pago que TÚ hiciste), no un abono de un cliente — se omite.
+      if (idx.cargo >= 0 && idx.abono >= 0){
+        var cargoVal = parseCLNumber(cells[idx.cargo]);
+        if (cargoVal) continue;
+      }
+      movimientos.push({
+        fecha: fechaISO,
+        glosa: idx.glosa >= 0 ? String(cells[idx.glosa] || "").trim() : "",
+        monto: Math.round(monto)
+      });
+    }
+    return movimientos;
+  }
+
+  function matchCartolaMovimientos(movimientos){
+    var pendientes = state.invoices.filter(function(f){ return saldoDe(f) > 0; });
+    return movimientos.map(function(mov){
+      var candidatas = pendientes
+        .filter(function(f){ return Math.abs(saldoDe(f) - mov.monto) <= 1; })
+        .sort(function(a,b){
+          return Math.abs(new Date(a.vencimiento) - new Date(mov.fecha)) -
+                 Math.abs(new Date(b.vencimiento) - new Date(mov.fecha));
+        });
+      return { mov: mov, candidatas: candidatas };
+    });
+  }
+
+  var cartolaSuggestions = [];
+
+  function renderCartolaResults(){
+    var wrap = document.getElementById("cartola-results");
+    if (!cartolaSuggestions.length){ wrap.innerHTML = ""; return; }
+    var rows = cartolaSuggestions.map(function(s, i){
+      if (s.done){
+        return '<tr><td>' + fmtDate(new Date(s.mov.fecha)) + '</td><td>' + (s.mov.glosa || "—") + '</td>' +
+          '<td class="num tabular">' + fmtCLP(s.mov.monto) + '</td>' +
+          '<td colspan="2" style="color:var(--good); font-weight:700;">✓ ' + s.doneLabel + '</td></tr>';
+      }
+      if (!s.candidatas.length){
+        return '<tr><td>' + fmtDate(new Date(s.mov.fecha)) + '</td><td>' + (s.mov.glosa || "—") + '</td>' +
+          '<td class="num tabular">' + fmtCLP(s.mov.monto) + '</td>' +
+          '<td colspan="2" style="color:var(--muted);">Sin coincidencia por monto</td></tr>';
+      }
+      var selId = "cartola-sel-" + i;
+      var options = s.candidatas.map(function(f, ci){
+        return '<option value="' + ci + '">Folio ' + f.folio + ' — ' + f.razonSocial + ' (' + fmtCLP(saldoDe(f)) + ')</option>';
+      }).join("");
+      return '<tr>' +
+        '<td>' + fmtDate(new Date(s.mov.fecha)) + '</td>' +
+        '<td>' + (s.mov.glosa || "—") + '</td>' +
+        '<td class="num tabular">' + fmtCLP(s.mov.monto) + '</td>' +
+        '<td><select class="search" id="' + selId + '" style="min-width:0;">' + options + '</select></td>' +
+        '<td><button class="btn primary small" type="button" data-accept="' + i + '">Aceptar</button> ' +
+        '<button class="btn ghost small" type="button" data-discard="' + i + '">Descartar</button></td>' +
+        '</tr>';
+    }).join("");
+    wrap.innerHTML =
+      '<div class="table-scroll"><table class="compact"><thead><tr>' +
+      '<th>Fecha</th><th>Glosa banco</th><th class="num">Monto</th><th>Factura sugerida</th><th></th>' +
+      '</tr></thead><tbody>' + rows + '</tbody></table></div>';
+
+    wrap.querySelectorAll("[data-accept]").forEach(function(btn){
+      btn.addEventListener("click", function(){
+        var i = parseInt(btn.getAttribute("data-accept"), 10);
+        var s = cartolaSuggestions[i];
+        var sel = document.getElementById("cartola-sel-" + i);
+        var f = s.candidatas[parseInt(sel.value, 10)];
+        registrarPago(f, s.mov.monto);
+        s.done = true;
+        s.doneLabel = "Marcada como pagada: Folio " + f.folio + " (" + f.razonSocial + ")";
+        renderCartolaResults();
+      });
+    });
+    wrap.querySelectorAll("[data-discard]").forEach(function(btn){
+      btn.addEventListener("click", function(){
+        var i = parseInt(btn.getAttribute("data-discard"), 10);
+        cartolaSuggestions[i].done = true;
+        cartolaSuggestions[i].doneLabel = "Descartada";
+        renderCartolaResults();
+      });
+    });
+  }
+
+  function runCartola(text){
+    var movimientos;
+    try {
+      movimientos = parseCartola(text);
+    } catch(e){
+      var log = document.getElementById("cartola-log");
+      log.hidden = false; log.classList.add("error"); log.textContent = "No se pudo analizar: " + e.message;
+      return;
+    }
+    var withMatch = matchCartolaMovimientos(movimientos);
+    cartolaSuggestions = withMatch;
+    var log = document.getElementById("cartola-log");
+    log.hidden = false; log.classList.remove("error");
+    var conMatch = withMatch.filter(function(s){ return s.candidatas.length; }).length;
+    log.innerHTML = movimientos.length + " movimiento(s) leído(s) de la cartola. " +
+      "<strong>" + conMatch + " con posible coincidencia</strong> por monto — revísalas abajo antes de aceptar. " +
+      "Ningún pago se marca automáticamente.";
+    renderCartolaResults();
   }
 
   function renderBell(){
@@ -2248,8 +3682,105 @@
     }
   }
 
+  async function triggerDownload(filename, content, mime){
+    try {
+      if (window.claude && typeof window.claude.use === "function"){
+        var downloads = await window.claude.use("downloads");
+        if (downloads){
+          await downloads.save({ filename: filename, data: content });
+          return true;
+        }
+      }
+    } catch(e) { /* fall back below */ }
+    try {
+      var blob = new Blob([content], { type: mime + ";charset=utf-8;" });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+      return true;
+    } catch(e){
+      return false;
+    }
+  }
+
+  function tableToCSV(tableId){
+    var table = document.getElementById(tableId);
+    if (!table) return "";
+    var theadRow = table.querySelector("thead tr");
+    var headerCells = Array.prototype.slice.call(theadRow.children);
+    var lastIsAction = headerCells.length && headerCells[headerCells.length-1].textContent.trim() === "";
+    var colCount = lastIsAction ? headerCells.length - 1 : headerCells.length;
+    var headers = headerCells.slice(0, colCount).map(function(th){
+      return th.textContent.replace(/[▲▼]/g, "").trim();
+    });
+    var lines = [headers.map(csvEscape).join(";")];
+    function cellText(td){
+      var input = td.querySelector("input");
+      if (input) return input.value.trim();
+      return td.textContent.trim();
+    }
+    table.querySelectorAll("tbody tr").forEach(function(tr){
+      if (tr.querySelector(".empty-state") || tr.classList.contains("empty-row")) return;
+      var cells = Array.prototype.slice.call(tr.children).slice(0, colCount);
+      if (!cells.length) return;
+      lines.push(cells.map(function(td){ return csvEscape(cellText(td)); }).join(";"));
+    });
+    var tfootRow = table.querySelector("tfoot tr");
+    if (tfootRow){
+      var fcells = Array.prototype.slice.call(tfootRow.children).slice(0, colCount);
+      lines.push(fcells.map(function(td){ return csvEscape(td.textContent.trim()); }).join(";"));
+    }
+    return "﻿" + lines.join("\n");
+  }
+
+  async function exportTableCSV(tableId, filenamePrefix){
+    var csv = tableToCSV(tableId);
+    var filename = filenamePrefix + "-" + new Date().toISOString().slice(0,10) + ".csv";
+    var ok = await triggerDownload(filename, csv, "text/csv");
+    showToast(ok ? "Tabla descargada (ábrela con Excel)." : "No se pudo generar la descarga en este visor.");
+  }
+
+  function renderGoalAndDrive(){
+    var driveWrap = document.getElementById("drive-link-wrap");
+    var driveBtn = document.getElementById("drive-link-btn");
+    if (state.driveUrl){
+      driveBtn.href = state.driveUrl;
+      driveWrap.hidden = false;
+    } else {
+      driveWrap.hidden = true;
+    }
+
+    var goalWrap = document.getElementById("goal-semaforo-wrap");
+    var meta = state.settings.metaMensual || 0;
+    if (meta > 0){
+      var thisMonthKey = monthKey(new Date());
+      var facturadoMes = state.invoices
+        .filter(function(f){ return monthKey(f.emision) === thisMonthKey; })
+        .reduce(function(s,f){ return s + facturadoDe(f); }, 0);
+      var pct = Math.round((facturadoMes / meta) * 100);
+      var color = pct >= 100 ? "verde" : (pct >= 70 ? "amarilla" : "roja");
+      var label = pct >= 100 ? "Meta cumplida" : (pct >= 70 ? "Cerca de la meta" : "Bajo la meta");
+      goalWrap.innerHTML =
+        '<div class="goal-semaforo">' +
+          '<span class="dot3 ' + color + '"></span>' +
+          '<span class="txt"><strong>' + label + ' (' + pct + '%)</strong> — llevas ' + fmtCLP(facturadoMes) +
+          ' de la meta mensual de ' + fmtCLP(meta) + ' este mes.</span>' +
+          '<span class="info-tip" tabindex="0"><i class="ic">i</i><span class="bubble">Compara lo facturado en el mes calendario actual contra la meta que configuraste en Ajustes. Verde = 100% o más, amarillo = 70-99%, rojo = menos de 70%.</span></span>' +
+        '</div>';
+      goalWrap.hidden = false;
+    } else {
+      goalWrap.hidden = true;
+    }
+  }
+
   function renderAll(){
     renderYearFilter();
+    renderGoalAndDrive();
     renderKPIs();
     renderChart();
     renderDonut();
@@ -2286,12 +3817,148 @@
     renderTable();
   });
 
-  document.getElementById("simulate-btn").addEventListener("click", function(){
-    var inv = makeInvoice({});
-    state.invoices.unshift(inv);
-    saveData();
-    renderAll();
-    showToast("Nueva factura folio " + inv.folio + " (" + inv.razonSocial + ") por " + fmtCLP(inv.total) + ".");
+  // --- Buscador global (folio / razón social / RUT) -----------------------
+  function jumpToInvoice(f){
+    state.query = String(f.folio);
+    document.getElementById("search").value = String(f.folio);
+    state.filter = "todas";
+    document.querySelectorAll(".chip").forEach(function(ch){
+      ch.setAttribute("aria-pressed", ch.getAttribute("data-filter") === "todas" ? "true" : "false");
+    });
+    setView("facturas");
+    renderTable();
+  }
+  function jumpToCliente(rut){
+    state.query = rut;
+    document.getElementById("search").value = rut;
+    state.filter = "todas";
+    document.querySelectorAll(".chip").forEach(function(ch){
+      ch.setAttribute("aria-pressed", ch.getAttribute("data-filter") === "todas" ? "true" : "false");
+    });
+    setView("facturas");
+    renderTable();
+  }
+  var globalSearchInput = document.getElementById("global-search");
+  var globalSearchResults = document.getElementById("global-search-results");
+  globalSearchInput.addEventListener("input", function(){
+    var q = globalSearchInput.value.trim().toLowerCase();
+    if (!q){ globalSearchResults.hidden = true; return; }
+    var facturaMatches = state.invoices.filter(function(f){
+      return String(f.folio).indexOf(q) >= 0 ||
+        (f.razonSocial || "").toLowerCase().indexOf(q) >= 0 ||
+        (f.rut || "").toLowerCase().indexOf(q) >= 0;
+    }).slice(0, 8);
+    var clientesVistos = {};
+    var clienteMatches = [];
+    state.invoices.forEach(function(f){
+      var key = f.razonSocial + "||" + f.rut;
+      if (clientesVistos[key]) return;
+      if ((f.razonSocial || "").toLowerCase().indexOf(q) >= 0 || (f.rut || "").toLowerCase().indexOf(q) >= 0){
+        clientesVistos[key] = true;
+        clienteMatches.push(f);
+      }
+    });
+    clienteMatches = clienteMatches.slice(0, 5);
+
+    if (!facturaMatches.length && !clienteMatches.length){
+      globalSearchResults.innerHTML = '<div class="gsr-empty">Sin resultados para "' + globalSearchInput.value + '".</div>';
+      globalSearchResults.hidden = false;
+      return;
+    }
+    var html = "";
+    if (clienteMatches.length){
+      html += clienteMatches.map(function(f){
+        return '<button type="button" class="gsr-item" data-jump-cliente="' + f.rut + '">' +
+          '<div class="t1">👤 ' + f.razonSocial + '</div><div class="t2">' + f.rut + '</div></button>';
+      }).join("");
+    }
+    if (facturaMatches.length){
+      html += facturaMatches.map(function(f){
+        return '<button type="button" class="gsr-item" data-jump-folio="' + f.folio + '">' +
+          '<div class="t1">📄 Folio ' + f.folio + ' — ' + f.razonSocial + '</div>' +
+          '<div class="t2">' + fmtCLP(f.total) + ' · vence ' + fmtDate(new Date(f.vencimiento)) + '</div></button>';
+      }).join("");
+    }
+    globalSearchResults.innerHTML = html;
+    globalSearchResults.hidden = false;
+    globalSearchResults.querySelectorAll("[data-jump-folio]").forEach(function(btn){
+      btn.addEventListener("click", function(){
+        var f = state.invoices.filter(function(x){ return String(x.folio) === btn.getAttribute("data-jump-folio"); })[0];
+        if (f) jumpToInvoice(f);
+        globalSearchResults.hidden = true;
+        globalSearchInput.value = "";
+      });
+    });
+    globalSearchResults.querySelectorAll("[data-jump-cliente]").forEach(function(btn){
+      btn.addEventListener("click", function(){
+        jumpToCliente(btn.getAttribute("data-jump-cliente"));
+        globalSearchResults.hidden = true;
+        globalSearchInput.value = "";
+      });
+    });
+  });
+  document.addEventListener("click", function(ev){
+    if (!globalSearchInput.contains(ev.target) && !globalSearchResults.contains(ev.target)){
+      globalSearchResults.hidden = true;
+    }
+  });
+
+  // --- Modo compacto -------------------------------------------------------
+  function applyCompactMode(on){
+    document.body.classList.toggle("compact-mode", on);
+    document.getElementById("density-btn").textContent = on ? "↕ Normal" : "↕ Compacto";
+  }
+  var compactOn = loadCompact();
+  applyCompactMode(compactOn);
+  document.getElementById("density-btn").addEventListener("click", function(){
+    compactOn = !compactOn;
+    saveCompact(compactOn);
+    applyCompactMode(compactOn);
+  });
+
+  // --- Exportar PDF (usa el diálogo de impresión del navegador) -----------
+  document.getElementById("print-pdf-btn").addEventListener("click", function(){
+    window.print();
+  });
+  window.addEventListener("beforeprint", function(){
+    document.querySelectorAll(".view").forEach(function(v){
+      v.dataset.wasHidden = v.hidden ? "1" : "0";
+      v.hidden = false;
+    });
+  });
+  window.addEventListener("afterprint", function(){
+    document.querySelectorAll(".view").forEach(function(v){
+      v.hidden = v.dataset.wasHidden === "1";
+    });
+  });
+
+  // --- Vista Kanban de Cobranza ---------------------------------------------
+  document.getElementById("toggle-kanban-btn").addEventListener("click", function(){
+    state.kanbanMode = !state.kanbanMode;
+    document.getElementById("cobranza-kanban").hidden = !state.kanbanMode;
+    document.getElementById("cobranza-table-wrap").hidden = state.kanbanMode;
+    document.getElementById("toggle-kanban-btn").textContent = state.kanbanMode ? "📋 Vista Lista" : "🗂 Vista Kanban";
+    renderCobranza();
+  });
+
+  // --- Atajos de teclado ("/" busca, "n" nueva factura, Escape cierra) ----
+  document.addEventListener("keydown", function(ev){
+    var tag = (ev.target.tagName || "").toLowerCase();
+    var isTyping = tag === "input" || tag === "textarea" || tag === "select" || ev.target.isContentEditable;
+    if (ev.key === "/" && !isTyping){
+      ev.preventDefault();
+      globalSearchInput.focus();
+    } else if ((ev.key === "n" || ev.key === "N") && !isTyping){
+      ev.preventDefault();
+      setView("facturas");
+      var form = document.getElementById("new-invoice-form");
+      form.hidden = false;
+      document.getElementById("ni-folio").value = nextFolio();
+      document.getElementById("ni-emision").value = new Date().toISOString().slice(0,10);
+      document.getElementById("ni-razon").focus();
+    } else if (ev.key === "Escape"){
+      globalSearchResults.hidden = true;
+    }
   });
 
   document.getElementById("reset-btn").addEventListener("click", function(){
@@ -2304,6 +3971,53 @@
 
   document.getElementById("export-csv-btn").addEventListener("click", exportCSV);
   document.getElementById("export-json-btn").addEventListener("click", exportJSON);
+
+  setupSortableHeaders("table-facturas", "facturas", renderTable);
+  setupSortableHeaders("table-cobranza", "cobranza", renderCobranza);
+  setupSortableHeaders("table-clientes", "clientes", renderClientes);
+
+  document.getElementById("export-facturas-csv-btn").addEventListener("click", function(){
+    exportTableCSV("table-facturas", "facturas-dmz");
+  });
+
+  document.getElementById("toggle-new-invoice-btn").addEventListener("click", function(){
+    var form = document.getElementById("new-invoice-form");
+    form.hidden = !form.hidden;
+    if (!form.hidden){
+      document.getElementById("ni-folio").value = nextFolio();
+      document.getElementById("ni-emision").value = new Date().toISOString().slice(0,10);
+      document.getElementById("ni-razon").focus();
+    }
+  });
+  document.getElementById("cancel-new-invoice-btn").addEventListener("click", function(){
+    document.getElementById("new-invoice-form").reset();
+    document.getElementById("new-invoice-form").hidden = true;
+  });
+  document.getElementById("new-invoice-form").addEventListener("submit", function(e){
+    e.preventDefault();
+    var ok = addManualInvoice({
+      folio: document.getElementById("ni-folio").value,
+      razon: document.getElementById("ni-razon").value,
+      rut: document.getElementById("ni-rut").value,
+      neto: document.getElementById("ni-neto").value,
+      iva: document.getElementById("ni-iva").value,
+      emision: document.getElementById("ni-emision").value,
+      vencimiento: document.getElementById("ni-vencimiento").value
+    });
+    if (ok){
+      e.target.reset();
+      e.target.hidden = true;
+    }
+  });
+  document.getElementById("export-cobranza-csv-btn").addEventListener("click", function(){
+    exportTableCSV("table-cobranza", "cobranza-dmz");
+  });
+  document.getElementById("export-clientes-csv-btn").addEventListener("click", function(){
+    exportTableCSV("table-clientes", "clientes-dmz");
+  });
+  document.getElementById("export-reportes-csv-btn").addEventListener("click", function(){
+    exportTableCSV("table-reportes", "reportes-dmz");
+  });
 
   document.getElementById("import-btn").addEventListener("click", function(){
     var input = document.getElementById("import-file");
@@ -2321,18 +4035,83 @@
     runImport(text);
   });
 
+  document.getElementById("cartola-btn").addEventListener("click", function(){
+    var input = document.getElementById("cartola-file");
+    var file = input.files && input.files[0];
+    var log = document.getElementById("cartola-log");
+    if (!file){ log.hidden = false; log.classList.add("error"); log.textContent = "Primero selecciona un archivo CSV."; return; }
+    var reader = new FileReader();
+    reader.onload = function(e){ runCartola(String(e.target.result || "")); };
+    reader.onerror = function(){ log.hidden = false; log.classList.add("error"); log.textContent = "No se pudo leer el archivo."; };
+    reader.readAsText(file, "utf-8");
+  });
+
+  document.getElementById("cartola-paste-btn").addEventListener("click", function(){
+    var text = document.getElementById("cartola-paste").value;
+    var log = document.getElementById("cartola-log");
+    if (!text || !text.trim()){ log.hidden = false; log.classList.add("error"); log.textContent = "Pega el contenido de la cartola primero."; return; }
+    runCartola(text);
+  });
+
   document.getElementById("settings-form").addEventListener("submit", function(e){
     e.preventDefault();
     var plazo = parseInt(document.getElementById("set-plazo").value, 10);
     var umbral = parseInt(document.getElementById("set-umbral").value, 10);
+    var meta = parseInt(document.getElementById("set-meta").value, 10);
     if (!isNaN(plazo) && plazo > 0) state.settings.plazoDias = plazo;
     if (!isNaN(umbral) && umbral > 0) state.settings.umbralDias = umbral;
+    state.settings.metaMensual = (!isNaN(meta) && meta >= 0) ? meta : 0;
     saveSettings();
     renderAll();
     showToast("Parámetros de cobranza actualizados.");
   });
   document.getElementById("set-plazo").value = state.settings.plazoDias;
   document.getElementById("set-umbral").value = state.settings.umbralDias;
+  document.getElementById("set-meta").value = state.settings.metaMensual || 0;
+
+  document.getElementById("drive-form").addEventListener("submit", function(e){
+    e.preventDefault();
+    state.driveUrl = document.getElementById("drive-url").value.trim();
+    saveDriveUrl();
+    renderAll();
+    showToast("Link de Drive guardado.");
+  });
+  document.getElementById("drive-url").value = state.driveUrl;
+
+  document.getElementById("emailjs-form").addEventListener("submit", function(e){
+    e.preventDefault();
+    state.emailjsConfig.service = document.getElementById("ej-service").value.trim();
+    state.emailjsConfig.template = document.getElementById("ej-template").value.trim();
+    state.emailjsConfig.publicKey = document.getElementById("ej-publickey").value.trim();
+    saveEmailjsConfig();
+    try {
+      if (window.emailjs && state.emailjsConfig.publicKey) window.emailjs.init(state.emailjsConfig.publicKey);
+    } catch(err) { /* seguirá cayendo al mailto si algo falla */ }
+    renderClientes();
+    showToast(emailjsListo()
+      ? "Envío directo activado — usa \"Enviar cobranza\" en Clientes."
+      : "Guardado. Revisa que los 3 campos estén completos para activar el envío directo.");
+  });
+  document.getElementById("ej-service").value = state.emailjsConfig.service;
+  document.getElementById("ej-template").value = state.emailjsConfig.template;
+  document.getElementById("ej-publickey").value = state.emailjsConfig.publicKey;
+
+  document.getElementById("github-form").addEventListener("submit", function(e){
+    e.preventDefault();
+    state.githubConfig.owner = document.getElementById("gh-owner").value.trim();
+    state.githubConfig.repo = document.getElementById("gh-repo").value.trim();
+    state.githubConfig.branch = document.getElementById("gh-branch").value.trim() || "main";
+    var tokenVal = document.getElementById("gh-token").value.trim();
+    if (tokenVal) state.githubConfig.token = tokenVal;
+    saveGithubConfig();
+    showToast("Configuración de GitHub guardada en este navegador.");
+  });
+  document.getElementById("gh-owner").value = state.githubConfig.owner;
+  document.getElementById("gh-repo").value = state.githubConfig.repo;
+  document.getElementById("gh-branch").value = state.githubConfig.branch;
+  document.getElementById("gh-token").value = state.githubConfig.token;
+
+  document.getElementById("publish-github-btn").addEventListener("click", publishToGitHub);
 
   var sidebar = document.getElementById("sidebar");
   var overlay = document.getElementById("sidebar-overlay");
@@ -2385,6 +4164,10 @@
     };
     note.textContent = labels[state.dataSource] || "";
   }
+
+  try {
+    if (window.emailjs && state.emailjsConfig.publicKey) window.emailjs.init(state.emailjsConfig.publicKey);
+  } catch(e) { /* EmailJS no disponible en este visor (CDN bloqueado); el botón cae al mailto de siempre. */ }
 
   setView("resumen");
   loadInvoices().then(function(invoices){
