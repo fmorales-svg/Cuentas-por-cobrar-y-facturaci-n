@@ -1,0 +1,46 @@
+[
+  {
+    "folio": 1001,
+    "razonSocial": "Comercial Vargas SPA",
+    "rut": "76.123.456-7",
+    "neto": 850000,
+    "iva": 161500,
+    "total": 1011500,
+    "emision": "2026-07-20",
+    "vencimiento": "2026-08-19",
+    "pagada": false
+  },
+  {
+    "folio": 1002,
+    "razonSocial": "Inversiones Australis Ltda",
+    "rut": "77.654.321-9",
+    "neto": 420000,
+    "iva": 79800,
+    "total": 499800,
+    "emision": "2026-08-05",
+    "vencimiento": "2026-09-04",
+    "pagada": false
+  },
+  {
+    "folio": 1003,
+    "razonSocial": "Agrícola Los Coihues SPA",
+    "rut": "78.111.222-3",
+    "neto": 1200000,
+    "iva": 228000,
+    "total": 1428000,
+    "emision": "2026-09-10",
+    "vencimiento": "2026-10-10",
+    "pagada": false
+  },
+  {
+    "folio": 1004,
+    "razonSocial": "Distribuidora Andina Ltda",
+    "rut": "79.333.444-5",
+    "neto": 650000,
+    "iva": 123500,
+    "total": 773500,
+    "emision": "2026-07-01",
+    "vencimiento": "2026-07-31",
+    "pagada": true
+  }
+]
