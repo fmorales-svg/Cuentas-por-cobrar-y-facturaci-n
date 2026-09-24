@@ -1,6 +1,20 @@
 {
   "documentos": [
     {
+      "folio": 100012,
+      "razonSocial": "Foo",
+      "rut": "0",
+      "neto": 0,
+      "iva": 0,
+      "exento": 717500,
+      "total": 717500,
+      "emision": "2026-08-24",
+      "vencimiento": "2026-09-22",
+      "pagada": false,
+      "montoPagado": 0,
+      "origen": "manual"
+    },
+    {
       "folio": 100011,
       "razonSocial": "Nico Bossans (mensual)",
       "rut": "0",
