@@ -1,6 +1,18 @@
 {
   "documentos": [
     {
+      "folio": 100000,
+      "razonSocial": "Chinos (Renta)",
+      "rut": "0",
+      "neto": 2900000,
+      "iva": 551000,
+      "total": 3451000,
+      "emision": "2026-01-05",
+      "vencimiento": "2026-02-04",
+      "pagada": false,
+      "montoPagado": 0
+    },
+    {
       "folio": 114,
       "razonSocial": "BIC CHILE S A",
       "rut": "94653000-K",
