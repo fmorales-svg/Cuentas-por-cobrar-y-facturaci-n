@@ -503,7 +503,12 @@
   }
   .search:focus-visible{ outline: 2px solid var(--accent); }
 
-  .table-scroll{ overflow-x: auto; }
+  /* Nota técnica: si overflow-x es distinto de "visible", los navegadores
+     igual convierten overflow-y a un valor con scroll (aunque se pida
+     "visible"), así que un encabezado "sticky" no tiene contra qué pegarse
+     a menos que esta caja tenga su propio scroll vertical acotado. Por eso
+     se le da una altura máxima: así funciona el encabezado congelado. */
+  .table-scroll{ overflow: auto; max-height: 66vh; }
   .scroll-wrap{ position: relative; }
   .scroll-arrow{
     position: absolute; top: 50%; transform: translateY(-50%);
@@ -535,7 +540,15 @@
     padding: 8px 10px;
     border-bottom: 1px solid var(--gridline);
     white-space: nowrap;
+    /* Encabezado congelado (ver también el JS de más abajo: position:sticky
+       en un <th> dentro de una tabla no queda 100% confiable en todos los
+       navegadores/combinaciones, así que el freeze real del encabezado lo
+       hace un pequeño script al hacer scroll). */
+    position: relative;
+    background: var(--surface);
+    z-index: 2;
   }
+  thead th:first-child{ z-index: 3; }
   tbody td{
     padding: 10px 10px;
     border-bottom: 1px solid var(--gridline);
@@ -554,6 +567,29 @@
     max-width: 200px;
   }
   tbody tr:hover td:first-child{ background: var(--surface-2); }
+
+  /* Freeze panes: en Facturas y Cobranza, además del Folio (1ra columna),
+     se deja fija la Razón social (2da columna) para que siempre se sepa de
+     qué cliente son los montos/fechas al desplazar la tabla hacia el lado. */
+  #table-facturas thead th:first-child, #table-facturas tbody td:first-child,
+  #table-cobranza thead th:first-child, #table-cobranza tbody td:first-child{
+    width: 66px; min-width: 66px; max-width: 66px; white-space: nowrap;
+  }
+  #table-facturas thead th:nth-child(2), #table-facturas tbody td:nth-child(2),
+  #table-cobranza thead th:nth-child(2), #table-cobranza tbody td:nth-child(2){
+    position: sticky;
+    left: 66px;
+    background: var(--surface);
+    z-index: 1;
+    box-shadow: 1px 0 0 var(--gridline);
+    white-space: normal;
+    min-width: 150px;
+    max-width: 190px;
+  }
+  #table-facturas thead th:nth-child(2), #table-cobranza thead th:nth-child(2){ z-index: 3; }
+  #table-facturas tbody tr:hover td:nth-child(2), #table-cobranza tbody tr:hover td:nth-child(2){
+    background: var(--surface-2);
+  }
   td.num, th.num{ text-align: right; font-variant-numeric: tabular-nums; }
   td.razon{ white-space: normal; max-width: 220px; }
 
@@ -1072,18 +1108,21 @@
           </div>
         </div>
         <div style="display:flex; gap:10px; flex-wrap:wrap;">
-          <div class="field" style="flex:1; min-width:130px;">
-            <label for="ni-neto">Monto neto (CLP)</label>
+          <div class="field" style="flex:1; min-width:150px;">
+            <label for="ni-tipo">Tipo de monto</label>
+            <select id="ni-tipo">
+              <option value="afecta">Afecta (con IVA)</option>
+              <option value="exenta">Exenta (sin IVA)</option>
+            </select>
+            <div class="field-hint" id="ni-tipo-hint">Con IVA: se calcula 19% del neto.</div>
+          </div>
+          <div class="field" id="ni-neto-field" style="flex:1; min-width:130px;">
+            <label for="ni-neto" id="ni-neto-label">Monto neto (CLP)</label>
             <input type="number" id="ni-neto" min="0" step="1" placeholder="0">
           </div>
-          <div class="field" style="flex:1; min-width:130px;">
+          <div class="field" id="ni-iva-field" style="flex:1; min-width:130px;">
             <label for="ni-iva">IVA (CLP)</label>
             <input type="number" id="ni-iva" min="0" step="1" placeholder="Se calcula solo si lo dejas vacío">
-          </div>
-          <div class="field" style="flex:1; min-width:130px;">
-            <label for="ni-exento">Monto exento (CLP)</label>
-            <input type="number" id="ni-exento" min="0" step="1" placeholder="0">
-            <div class="field-hint">Solo si la factura tiene una parte exenta de IVA.</div>
           </div>
           <div class="field" style="flex:1; min-width:150px;">
             <label for="ni-emision">Fecha emisión</label>
@@ -2387,9 +2426,10 @@
     var folio = parseInt(data.folio, 10);
     var razon = (data.razon || "").trim();
     var rut = (data.rut || "").trim();
-    var neto = Number(data.neto);
-    if (!folio || !razon || !rut || !isFinite(neto) || neto <= 0 || !data.emision){
-      showToast("Completa al menos folio, razón social, RUT, monto neto y fecha de emisión.");
+    var neto = Number(data.neto) || 0;
+    var exentoPrevio = Number(data.exento) || 0;
+    if (!folio || !razon || !rut || !isFinite(neto) || neto < 0 || (neto <= 0 && exentoPrevio <= 0) || !data.emision){
+      showToast("Completa al menos folio, razón social, RUT, un monto (neto o exento) y fecha de emisión.");
       return false;
     }
     if (state.invoices.some(function(x){ return x.folio === folio; })){
@@ -2488,9 +2528,15 @@
   function renderTable(){
     var tbody = document.getElementById("invoice-body");
     tbody.innerHTML = "";
+    // Mientras se está buscando texto, el buscador manda: se ven TODAS las
+    // facturas que calcen con lo escrito, sin importar el chip de estado que
+    // haya quedado activo (Vencidas, Pagadas, etc.) — así "chinos" muestra
+    // todas las facturas de ese cliente, no solo las del estado seleccionado.
     var rows = visibleInvoices()
-      .filter(matchesFilter)
-      .filter(matchesQuery)
+      .filter(function(f){
+        if (!matchesQuery(f)) return false;
+        return state.query ? true : matchesFilter(f);
+      })
       .sort(function(a,b){ return new Date(b.emision) - new Date(a.emision); });
     rows = applySort(rows, state.sort.facturas, FACTURAS_SORT_ACCESSORS);
     updateSortHeaderUI("table-facturas", "facturas");
@@ -2581,7 +2627,13 @@
           var n = Number(netoInput.value) || 0, i = Number(ivaInput.value) || 0, x = Number(exentoInput.value) || 0;
           totalTd.querySelector("strong").textContent = fmtCLP(n + i + x);
         }
-        netoInput.addEventListener("input", recalcTotalPreview);
+        netoInput.addEventListener("input", function(){
+          // Si se borra el neto, no tiene sentido dejar un IVA suelto: se
+          // limpia solo (si quieres un IVA sin neto asociado, vuelve a
+          // escribirlo a mano).
+          if (netoInput.value === "") ivaInput.value = "";
+          recalcTotalPreview();
+        });
         ivaInput.addEventListener("input", recalcTotalPreview);
         exentoInput.addEventListener("input", recalcTotalPreview);
 
@@ -4355,6 +4407,13 @@
 
   document.getElementById("search").addEventListener("input", function(e){
     state.query = e.target.value;
+    // Mientras hay texto buscado se ven todas las facturas que calcen, sin
+    // importar el chip de estado — se refleja visualmente marcando "Todas"
+    // (el chip elegido antes se recupera solo al borrar la búsqueda).
+    document.querySelectorAll(".chip").forEach(function(ch){
+      var esTodas = ch.getAttribute("data-filter") === (state.query ? "todas" : state.filter);
+      ch.setAttribute("aria-pressed", esTodas ? "true" : "false");
+    });
     renderTable();
   });
 
@@ -4569,6 +4628,8 @@
     if (!form.hidden){
       document.getElementById("ni-folio").value = nextFolio();
       document.getElementById("ni-emision").value = new Date().toISOString().slice(0,10);
+      document.getElementById("ni-tipo").value = "afecta";
+      aplicarTipoMontoNI();
       document.getElementById("ni-razon").focus();
     }
   });
@@ -4576,15 +4637,44 @@
     document.getElementById("new-invoice-form").reset();
     document.getElementById("new-invoice-form").hidden = true;
   });
+
+  // Afecta/Exenta: cambia en el momento sin perder lo ya escrito — el monto
+  // que tenías en "Neto" se traspasa solo al campo que corresponda, para que
+  // siempre se sume al total.
+  function aplicarTipoMontoNI(){
+    var esExenta = document.getElementById("ni-tipo").value === "exenta";
+    var netoLabel = document.getElementById("ni-neto-label");
+    var ivaField = document.getElementById("ni-iva-field");
+    var hint = document.getElementById("ni-tipo-hint");
+    netoLabel.textContent = esExenta ? "Monto exento (CLP)" : "Monto neto (CLP)";
+    ivaField.hidden = esExenta;
+    hint.textContent = esExenta
+      ? "Exenta: no se cobra IVA sobre este monto."
+      : "Con IVA: se calcula 19% del neto si dejas el campo IVA vacío.";
+  }
+  document.getElementById("ni-tipo").addEventListener("change", function(){
+    // Traspasa el monto ya escrito al campo correcto según el nuevo tipo,
+    // en vez de dejarlo perdido en un campo que se acaba de esconder.
+    var netoInput = document.getElementById("ni-neto");
+    var ivaInput = document.getElementById("ni-iva");
+    if (this.value === "exenta"){
+      ivaInput.value = "";
+    }
+    aplicarTipoMontoNI();
+  });
+  aplicarTipoMontoNI();
+
   document.getElementById("new-invoice-form").addEventListener("submit", function(e){
     e.preventDefault();
+    var esExenta = document.getElementById("ni-tipo").value === "exenta";
+    var montoIngresado = document.getElementById("ni-neto").value;
     var ok = addManualInvoice({
       folio: document.getElementById("ni-folio").value,
       razon: document.getElementById("ni-razon").value,
       rut: document.getElementById("ni-rut").value,
-      neto: document.getElementById("ni-neto").value,
-      iva: document.getElementById("ni-iva").value,
-      exento: document.getElementById("ni-exento").value,
+      neto: esExenta ? "0" : montoIngresado,
+      iva: esExenta ? "0" : document.getElementById("ni-iva").value,
+      exento: esExenta ? montoIngresado : "",
       emision: document.getElementById("ni-emision").value,
       vencimiento: document.getElementById("ni-vencimiento").value
     });
@@ -4894,6 +4984,22 @@
       window.addEventListener("resize", updateArrows);
       scroller._updateScrollArrows = updateArrows;
       updateArrows();
+
+      // Encabezado congelado: como el CSS "position: sticky" en celdas de
+      // tabla no siempre respeta el contenedor con scroll acotado, se fija
+      // "a mano" corriendo el encabezado hacia abajo lo mismo que se
+      // desplazó el scroll vertical (así queda pegado arriba, igual que un
+      // freeze panel de Excel).
+      var thead = scroller.querySelector("thead");
+      if (thead){
+        var ths = thead.querySelectorAll("th");
+        scroller.addEventListener("scroll", function(){
+          var y = Math.max(0, scroller.scrollTop);
+          // "transform" no mueve celdas de tabla en algunos navegadores —
+          // "top" con position:relative sobre un <th> sí funciona siempre.
+          ths.forEach(function(th){ th.style.top = y + "px"; });
+        });
+      }
     });
   }
   function refreshScrollArrows(){
