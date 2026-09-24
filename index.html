@@ -751,6 +751,11 @@
   }
   @media (max-width: 900px){ .aging-grid{ grid-template-columns: repeat(2,1fr); } }
   @media (max-width: 460px){ .aging-grid{ grid-template-columns: 1fr; } }
+  .aging-total{
+    display:flex; align-items:baseline; gap:8px; margin-bottom:10px;
+    font-size:13px; color: var(--text-secondary);
+  }
+  .aging-total strong{ font-size:18px; color: var(--text-primary); font-family:"Montserrat",sans-serif; }
   .aging-card{
     background: var(--surface);
     border: 1px solid var(--border);
@@ -1118,6 +1123,7 @@
 
   <!-- ================= COBRANZA ================= -->
   <section class="view" data-view="cobranza" hidden>
+    <div class="aging-total" id="aging-total"></div>
     <div class="aging-grid" id="aging-grid"></div>
     <section class="panel">
       <div class="panel-head">
@@ -1779,11 +1785,21 @@
   // Sondea facturas.json cada 45s para que quien solo mira (sin token de GitHub)
   // vea los cambios que publicó quien edita, sin tener que recargar la página.
   var AUTO_REFRESH_MS = 45000;
+  // Ventana de protección: tras cualquier cambio hecho EN ESTE navegador, no se
+  // acepta lo que llegue del sondeo por un rato. Sin esto, un "Marcar pagada"
+  // podía volver solo a "pendiente" pocos segundos después, porque el sondeo
+  // traía de vuelta la versión vieja de facturas.json (GitHub Pages demora
+  // 1-2 minutos en servir lo recién publicado, y si no hay token configurado
+  // el archivo remoto ni siquiera cambia).
+  var PROTECCION_MS = 3 * 60 * 1000;
+  var ultimoCambioLocal = 0;
   function iniciarAutoRefresh(){
     setInterval(async function(){
       if (state.dataSource !== "facturas.json") return;
-      // No pisar mientras hay un formulario de edición abierto.
+      // No pisar mientras hay un formulario de edición abierto, ni justo
+      // después de un cambio hecho aquí mismo.
       if (state.editingFolio || !document.getElementById("new-invoice-form").hidden) return;
+      if (Date.now() - ultimoCambioLocal < PROTECCION_MS) return;
       try {
         var res = await fetch("facturas.json", { cache: "no-store" });
         if (!res.ok) return;
@@ -1793,7 +1809,7 @@
         if (!Array.isArray(data)) aplicarSharedConfig(data.config);
         setDocs(docs);
         bumpFolioSeq(docs);
-        saveData();
+        saveData(true);
         renderAll();
       } catch(e){ /* red intermitente — se reintenta en el próximo ciclo */ }
     }, AUTO_REFRESH_MS);
@@ -1806,7 +1822,8 @@
   }
   function allDocs(){ return state.invoices.concat(state.notasCredito || []); }
 
-  function saveData(){
+  function saveData(desdeSondeo){
+    if (!desdeSondeo) ultimoCambioLocal = Date.now();
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(allDocs())); }
     catch(e) { /* storage unavailable (private mode, quota) — data stays in-memory */ }
   }
@@ -2610,6 +2627,12 @@
       else if (d >= -15){ buckets[2].count++; buckets[2].amt += saldo; }
       else { buckets[3].count++; buckets[3].amt += saldo; }
     });
+
+    var totalAmt = buckets.reduce(function(s,b){ return s + b.amt; }, 0);
+    var totalN = buckets.reduce(function(s,b){ return s + b.count; }, 0);
+    document.getElementById("aging-total").innerHTML =
+      'Total por cobrar en estos 4 tramos: <strong>' + fmtCLP(totalAmt) + '</strong> · ' +
+      totalN + (totalN === 1 ? " factura" : " facturas");
 
     var grid = document.getElementById("aging-grid");
     grid.innerHTML = "";
