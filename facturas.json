@@ -777,8 +777,8 @@
       "total": 81670,
       "emision": "2026-07-25",
       "vencimiento": "2026-08-24",
-      "pagada": false,
-      "montoPagado": 0
+      "pagada": true,
+      "montoPagado": 81670
     },
     {
       "folio": 186,
