@@ -449,8 +449,19 @@
   .legend span{ display:inline-flex; align-items:center; gap:6px; }
   .legend i{ width:10px; height:10px; border-radius:3px; display:inline-block; }
 
-  #chart-wrap{ overflow-x: auto; }
+  #chart-wrap{ overflow-x: auto; position: relative; }
   svg#chart{ display:block; min-width: 460px; width: 100%; height: auto; }
+  .chart-nav-arrow{
+    position: absolute; top: 50%; transform: translateY(-50%);
+    width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--border);
+    background: var(--surface); color: var(--text-secondary); box-shadow: var(--shadow);
+    display: flex; align-items: center; justify-content: center; font-size: 16px;
+    cursor: pointer; z-index: 2; transition: background .15s ease, color .15s ease;
+  }
+  .chart-nav-arrow:hover{ background: var(--accent-soft); color: var(--accent); }
+  .chart-nav-arrow.left{ left: -6px; }
+  .chart-nav-arrow.right{ right: -6px; }
+  .chart-nav-arrow[disabled]{ opacity: 0.3; cursor: default; pointer-events: none; }
   .bar{ fill: var(--accent); }
   .bar-label{ font-size: 10px; fill: var(--text-secondary); font-variant-numeric: tabular-nums; }
   .axis-label{ font-size: 10.5px; fill: var(--muted); }
@@ -825,6 +836,29 @@
   .aging-card.b2{ border-left: 3px solid var(--critical); }
   .aging-card.b3{ border-left: 3px solid var(--critical-strong, var(--critical)); }
 
+  /* ---------- Semáforo mensual ---------- */
+  .semaforo-grid{
+    display:grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 12px;
+  }
+  .semaforo-card{
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 12px 14px;
+    box-shadow: var(--shadow);
+  }
+  .semaforo-card .mes{ font-size: 12.5px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 8px; }
+  .semaforo-row{ display:flex; align-items:center; gap: 8px; margin-top: 6px; }
+  .semaforo-dot{ width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+  .semaforo-dot.verde{ background: var(--good); }
+  .semaforo-dot.amarillo{ background: var(--warning); }
+  .semaforo-dot.rojo{ background: var(--critical); }
+  .semaforo-dot.gris{ background: var(--muted); opacity: 0.4; }
+  .semaforo-label{ font-size: 11px; color: var(--text-secondary); }
+  .semaforo-val{ font-size: 11px; color: var(--muted); margin-left: auto; }
+
   /* ---------- Clientes view ---------- */
   .client-name{ font-weight: 700; }
   .client-sub{ font-size: 11.5px; color: var(--muted); }
@@ -927,6 +961,14 @@
     <button class="nav-item" type="button" data-view="reportes">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg>
       Reportes
+    </button>
+    <button class="nav-item" type="button" data-view="costos">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9 9.5a2.5 2.5 0 0 1 2.5-1.5h1a2 2 0 0 1 0 4h-1a2 2 0 0 0 0 4h1a2.5 2.5 0 0 0 2.5-1.5"/></svg>
+      Costos
+    </button>
+    <button class="nav-item" type="button" data-view="semaforo">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="8" y="2" width="8" height="20" rx="4"/><circle cx="12" cy="7" r="1.6" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="12" cy="17" r="1.6" fill="currentColor" stroke="none"/></svg>
+      Semáforo
     </button>
   </nav>
 
@@ -1041,7 +1083,9 @@
           </div>
         </div>
         <div id="chart-wrap">
+          <button class="chart-nav-arrow left" id="chart-prev-btn" type="button" aria-label="Ver meses anteriores">‹</button>
           <svg id="chart" viewBox="0 0 640 240" role="img" aria-label="Gráfico de barras de facturación mensual"></svg>
+          <button class="chart-nav-arrow right" id="chart-next-btn" type="button" aria-label="Ver meses siguientes">›</button>
         </div>
       </section>
 
@@ -1307,6 +1351,84 @@
       <div class="report-toolbar" style="justify-content:flex-start;">
         <button class="btn primary small" id="export-csv-btn" type="button">Descargar CSV</button>
       </div>
+    </section>
+  </section>
+
+  <!-- ================= COSTOS ================= -->
+  <section class="view" data-view="costos" hidden>
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Agregar costo</h2>
+        <span class="hint">asócialo a un folio de factura para ver su margen exacto, o déjalo sin folio si es un gasto general del mes</span>
+      </div>
+      <form class="settings-form" id="new-costo-form" style="max-width:680px; gap:12px;">
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <div class="field" style="flex:1; min-width:130px;">
+            <label for="co-fecha">Fecha</label>
+            <input type="date" id="co-fecha">
+          </div>
+          <div class="field" style="flex:1; min-width:130px;">
+            <label for="co-monto">Monto (CLP)</label>
+            <input type="number" id="co-monto" min="0" step="1" placeholder="0">
+          </div>
+          <div class="field" style="flex:1; min-width:130px;">
+            <label for="co-folio">Folio factura (opcional)</label>
+            <input type="text" id="co-folio" placeholder="Ej: 1027">
+          </div>
+          <div class="field" style="flex:2; min-width:200px;">
+            <label for="co-descripcion">Descripción</label>
+            <input type="text" id="co-descripcion" placeholder="Ej: Honorario colaborador externo">
+          </div>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn primary small" type="submit">Guardar costo</button>
+        </div>
+      </form>
+    </section>
+    <section class="panel">
+      <div class="panel-head"><h2>Importar Libro de Honorarios</h2></div>
+      <p style="font-size:13px; color:var(--text-secondary); max-width:620px; line-height:1.6;">
+        Pega aquí el CSV del Libro de Honorarios del SII (boletas de honorarios recibidas). Estos costos entran
+        sin folio asociado, porque el SII no los relaciona con una factura de venta específica — sirven para el
+        Semáforo mensual. Si un costo corresponde a una factura puntual, edítale el folio abajo en la tabla.
+      </p>
+      <textarea id="import-honorarios-paste" class="import-paste" rows="6" placeholder="Pega aquí el contenido del CSV del Libro de Honorarios (incluyendo la primera fila con los nombres de las columnas)..."></textarea>
+      <div style="margin-top:10px;">
+        <button class="btn primary small" id="import-honorarios-btn" type="button">Importar</button>
+      </div>
+      <div class="import-log" id="import-honorarios-log" hidden></div>
+    </section>
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Costos registrados</h2>
+        <span class="hint" id="costos-count">0 costos</span>
+      </div>
+      <div class="table-scroll">
+        <table id="table-costos">
+          <thead>
+            <tr>
+              <th>Fecha</th><th>Descripción</th><th>Folio factura</th><th class="num">Monto</th><th>Origen</th><th></th>
+            </tr>
+          </thead>
+          <tbody id="costos-body"></tbody>
+          <tfoot id="costos-totals"></tfoot>
+        </table>
+      </div>
+    </section>
+  </section>
+
+  <!-- ================= SEMÁFORO ================= -->
+  <section class="view" data-view="semaforo" hidden>
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Semáforo mensual</h2>
+        <span class="hint">cobranza y rentabilidad, todos los meses del año a la vez</span>
+      </div>
+      <div class="panel-toolbar">
+        <select id="semaforo-year"></select>
+        <span class="info-tip" tabindex="0"><i class="ic">i</i><span class="bubble">Cobranza: verde si casi nada está vencido, amarillo si hay algo vencido, rojo si hay bastante vencido. Rentabilidad: verde/amarillo/rojo según el margen (facturado menos costos) de las facturas de ese mes que ya tienen costo cargado. Gris = todavía no hay costos cargados para ese mes.</span></span>
+      </div>
+      <div class="semaforo-grid" id="semaforo-grid"></div>
     </section>
   </section>
 
@@ -1659,6 +1781,68 @@
     try { localStorage.setItem(NOTES_KEY, JSON.stringify(state.clientNotes)); }
     catch(e) { /* storage unavailable */ }
   }
+
+  // --- Costos (para calcular rentabilidad por factura) -------------------
+  var COSTOS_KEY = "dmz-cobranza-costos-v1";
+  function loadCostos(){
+    try {
+      var raw = localStorage.getItem(COSTOS_KEY);
+      if (raw) return JSON.parse(raw) || [];
+    } catch(e) { /* fall back to empty */ }
+    return [];
+  }
+  function saveCostosStore(){
+    try { localStorage.setItem(COSTOS_KEY, JSON.stringify(state.costos)); }
+    catch(e) { /* storage unavailable */ }
+  }
+  // Un costo puede quedar asociado a una factura (por folio) para calcular su
+  // margen exacto, o quedar suelto (solo cuenta para el total del mes en el
+  // Semáforo) si viene del Libro de Honorarios y no se sabe a qué factura
+  // corresponde.
+  function costosDeFactura(folio){
+    return (state.costos || []).filter(function(c){ return String(c.folio) === String(folio) && c.folio !== "" && c.folio != null; });
+  }
+  function costoDeFactura(folio){
+    return costosDeFactura(folio).reduce(function(s,c){ return s + (Number(c.monto) || 0); }, 0);
+  }
+  function margenDe(f){ return f.total - costoDeFactura(f.folio); }
+  // null = todavía no hay ningún costo cargado para esta factura (no se puede
+  // opinar sobre su rentabilidad, distinto de que el margen sea 0 o negativo).
+  function margenPctDe(f){
+    var costo = costoDeFactura(f.folio);
+    if (costo <= 0 || !f.total) return null;
+    return (margenDe(f) / f.total) * 100;
+  }
+  var costoSeq = 1;
+  function addCosto(data){
+    var monto = Number(data.monto);
+    var fecha = data.fecha;
+    if (!isFinite(monto) || monto <= 0 || !fecha){
+      showToast("Completa al menos un monto mayor a 0 y una fecha para el costo.");
+      return false;
+    }
+    var costo = {
+      id: "c" + (costoSeq++) + "-" + Date.now(),
+      fecha: fecha,
+      monto: Math.round(monto),
+      descripcion: (data.descripcion || "").trim(),
+      folio: (data.folio || "").trim(),
+      origen: data.origen || "manual"
+    };
+    state.costos.push(costo);
+    saveCostosStore();
+    renderAll();
+    autoPublicarCambioCompartido();
+    showToast("Costo agregado: " + fmtCLP(costo.monto) + (costo.folio ? " (folio " + costo.folio + ")" : "") + ".");
+    return true;
+  }
+  function deleteCosto(id){
+    state.costos = state.costos.filter(function(c){ return c.id !== id; });
+    saveCostosStore();
+    renderAll();
+    autoPublicarCambioCompartido();
+    showToast("Costo eliminado.");
+  }
   function notesDe(rut){ return state.clientNotes[contactKey(rut)] || []; }
   function addNote(rut, texto){
     texto = (texto || "").trim();
@@ -1830,7 +2014,8 @@
       driveUrl: state.driveUrl,
       emailjsConfig: state.emailjsConfig,
       clientNotes: state.clientNotes,
-      emailHistory: state.emailHistory
+      emailHistory: state.emailHistory,
+      costos: state.costos
     };
   }
   function aplicarSharedConfig(cfg){
@@ -1840,8 +2025,9 @@
     if (cfg.emailjsConfig) state.emailjsConfig = Object.assign({}, state.emailjsConfig, cfg.emailjsConfig);
     if (cfg.clientNotes) state.clientNotes = cfg.clientNotes;
     if (cfg.emailHistory) state.emailHistory = cfg.emailHistory;
+    if (Array.isArray(cfg.costos)) state.costos = cfg.costos;
     // Se guardan también localmente, como respaldo si facturas.json no está disponible.
-    saveSettings(); saveDriveUrl(); saveEmailjsConfig(); saveNotesStore(); saveEmailHistory();
+    saveSettings(); saveDriveUrl(); saveEmailjsConfig(); saveNotesStore(); saveEmailHistory(); saveCostosStore();
   }
 
   // Ventana de protección: sirve solo para no pisar un formulario de edición
@@ -1978,6 +2164,7 @@
     emailjsConfig: loadEmailjsConfig(),
     emailHistory: loadEmailHistory(),
     clientNotes: loadNotes(),
+    costos: loadCostos(),
     kanbanMode: false,
     notesOpenRut: null,
     filter: "todas",
@@ -2087,6 +2274,8 @@
     cobranza: { eyebrow: "Gestión de cobranza", title: "Cobranza", desc: "Cuentas por cobrar ordenadas por urgencia, con tramos de morosidad." },
     clientes: { eyebrow: "Cartera por cliente", title: "Clientes", desc: "Exposición total y estado de pago agrupados por razón social." },
     reportes: { eyebrow: "Cierre y análisis", title: "Reportes", desc: "Resumen mensual de la cartera y exportación a CSV." },
+    costos:   { eyebrow: "Costos y rentabilidad", title: "Costos", desc: "Registra costos manuales o importa el Libro de Honorarios para calcular márgenes." },
+    semaforo: { eyebrow: "Vista mensual", title: "Semáforo", desc: "Cobranza y rentabilidad de todos los meses del año, a la vista al mismo tiempo." },
     ajustes:  { eyebrow: "Configuración", title: "Ajustes", desc: "Parámetros de plazo de pago y umbral del semáforo de vencimiento." }
   };
 
@@ -2132,18 +2321,24 @@
   }
   var MESES = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
 
-  function lastMonths(n){
+  function lastMonths(n, offsetMonths){
     var today = new Date();
     var months = [];
+    var offset = offsetMonths || 0;
     for (var m = n-1; m >= 0; m--){
-      var d = new Date(today.getFullYear(), today.getMonth() - m, 1);
+      var d = new Date(today.getFullYear(), today.getMonth() - m - offset, 1);
       months.push({ key: monthKey(d), label: MESES[d.getMonth()] + " " + String(d.getFullYear()).slice(2) });
     }
     return months;
   }
 
+  // Ventana de 6 meses que se puede desplazar con las flechitas del gráfico
+  // "Facturación mensual", en vez de una barra de scroll — 0 = los últimos 6
+  // meses hasta hoy; un número mayor mueve la ventana hacia atrás en el tiempo.
+  var chartMonthOffset = 0;
+
   function renderChart(){
-    var months = lastMonths(6);
+    var months = lastMonths(6, chartMonthOffset);
     var scope = visibleInvoices();
     var totals = months.map(function(mo){
       var fac = scope.filter(function(f){ return monthKey(f.emision) === mo.key; })
@@ -2229,6 +2424,9 @@
     baseline.setAttribute("stroke", "var(--gridline)");
     baseline.setAttribute("stroke-width", "1.5");
     svg.appendChild(baseline);
+
+    var nextBtn = document.getElementById("chart-next-btn");
+    if (nextBtn) nextBtn.disabled = chartMonthOffset <= 0;
   }
 
   function renderDonut(){
@@ -2744,7 +2942,12 @@
           '</span>' + (parcial ? ' <span class="badge parcial"><span class="dot"></span>Parcial</span>' : '') +
           (f.tipoDoc === "56" ? ' <span class="badge tipo-nd"><span class="dot"></span>ND</span>' : '') +
           (!f.anulada && ncMontoDe(f) > 0 ? ' <span class="badge tipo-nd" title="Nota de crédito parcial: rebaja el saldo"><span class="dot"></span>NC −' + fmtCLP(ncMontoDe(f)) + '</span>' : '') +
-          (f.origen === "manual" ? ' <span class="badge tipo-nd" title="Agregada manualmente — se puede editar con el botón Editar"><span class="dot"></span>Manual</span>' : '') + '</td>' +
+          // Además de las que ya quedaron marcadas como "manual" al agregarlas,
+          // cualquier factura sin "Tipo Doc" del SII tampoco pudo venir del
+          // Excel del Libro de Ventas (ese importador siempre lo trae) — así
+          // que también es manual, aunque se haya agregado antes de que
+          // existiera esta marca.
+          ((f.origen === "manual" || !f.tipoDoc) ? ' <span class="badge tipo-nd" title="Agregada manualmente — se puede editar con el botón Editar"><span class="dot"></span>Manual</span>' : '') + '</td>' +
         '<td></td>' +
         '<td></td>' +
         '<td></td>';
@@ -3975,6 +4178,194 @@
     log.innerHTML = html;
   }
 
+  /**
+   * Lee un CSV del Libro de Honorarios del SII (boletas de honorarios
+   * recibidas — lo que le pagas a terceros) y arma costos sueltos. El SII no
+   * relaciona una boleta de honorarios con una factura de venta específica,
+   * así que estos costos entran SIN folio asociado — solo suman para el mes
+   * en el Semáforo. Si quieres que un costo se descuente de una factura en
+   * particular, se puede editar después y escribirle el folio a mano.
+   */
+  function parseHonorarios(text){
+    text = text.replace(/^﻿/, "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+    var lines = text.split("\n").filter(function(l){ return l.trim() !== ""; });
+    if (!lines.length) throw new Error("El archivo está vacío.");
+
+    var sep = detectSeparator(lines[0]);
+    var header = splitCSVLine(lines[0], sep).map(normalizeHeader);
+    function col(names){
+      for (var i = 0; i < names.length; i++){
+        var idx = header.indexOf(normalizeHeader(names[i]));
+        if (idx >= 0) return idx;
+      }
+      return -1;
+    }
+    var idx = {
+      fecha: col(["Fecha Emision", "Fecha"]),
+      monto: col(["Monto Bruto", "Monto Liquido", "Monto"]),
+      emisor: col(["Nombre o Razon Social", "Razon Social", "Nombre Emisor", "Emisor"]),
+      boleta: col(["Nro Boleta", "N Boleta", "Folio Boleta", "Folio"])
+    };
+    if (idx.fecha < 0 || idx.monto < 0){
+      throw new Error("No reconozco el formato de este archivo (¿es el CSV del Libro de Honorarios del SII, con la fila de encabezados incluida?).");
+    }
+
+    var nuevos = [];
+    var sinFecha = 0, sinMonto = 0;
+    for (var i = 1; i < lines.length; i++){
+      var cells = splitCSVLine(lines[i], sep);
+      if (cells.length < 2) continue;
+      var fechaISO = parseRCVDate(cells[idx.fecha]);
+      if (!fechaISO){ sinFecha++; continue; }
+      var monto = Math.abs(parseCLNumber(cells[idx.monto]));
+      if (!monto){ sinMonto++; continue; }
+      var emisor = idx.emisor >= 0 ? String(cells[idx.emisor] || "").trim() : "";
+      var boleta = idx.boleta >= 0 ? String(cells[idx.boleta] || "").trim() : "";
+      nuevos.push({
+        id: "c" + (costoSeq++) + "-" + Date.now() + "-" + i,
+        fecha: fechaISO,
+        monto: Math.round(monto),
+        descripcion: [emisor, boleta ? ("boleta " + boleta) : ""].filter(Boolean).join(" — ") || "Honorario importado",
+        folio: "",
+        origen: "honorarios"
+      });
+    }
+    return { nuevos: nuevos, sinFecha: sinFecha, sinMonto: sinMonto };
+  }
+
+  function showImportHonorariosLog(html, isError){
+    var log = document.getElementById("import-honorarios-log");
+    log.hidden = false;
+    log.classList.toggle("error", !!isError);
+    log.innerHTML = html;
+  }
+
+  function runImportHonorarios(text){
+    var result;
+    try {
+      result = parseHonorarios(text);
+    } catch(e){
+      showImportHonorariosLog("No se pudo importar: " + e.message, true);
+      return;
+    }
+    if (result.nuevos.length){
+      state.costos = state.costos.concat(result.nuevos);
+      saveCostosStore();
+      renderAll();
+      autoPublicarCambioCompartido();
+    }
+    var lines = [];
+    lines.push("<strong>" + result.nuevos.length + " costo(s) importado(s)</strong> del Libro de Honorarios.");
+    if (result.sinFecha) lines.push(result.sinFecha + " fila(s) sin fecha válida, se omitieron.");
+    if (result.sinMonto) lines.push(result.sinMonto + " fila(s) sin monto, se omitieron.");
+    lines.push("Estos costos quedan sin factura asociada — puedes editarlos en Costos y escribirle el folio si corresponde a una factura puntual.");
+    showImportHonorariosLog(lines.join("<br>"));
+  }
+
+  function renderCostos(){
+    var body = document.getElementById("costos-body");
+    var totals = document.getElementById("costos-totals");
+    var countEl = document.getElementById("costos-count");
+    if (!body) return;
+    var list = (state.costos || []).slice().sort(function(a,b){ return (b.fecha || "").localeCompare(a.fecha || ""); });
+    countEl.textContent = list.length + (list.length === 1 ? " costo" : " costos");
+    if (!list.length){
+      body.innerHTML = '<tr><td colspan="6" style="color:var(--muted); padding:18px 10px;">Todavía no hay costos registrados.</td></tr>';
+      totals.innerHTML = "";
+      return;
+    }
+    body.innerHTML = list.map(function(c){
+      var origenLabel = c.origen === "honorarios" ? "Libro honorarios" : "Manual";
+      return '<tr data-id="' + c.id + '">' +
+        '<td class="tabular">' + fmtDate(new Date(c.fecha)) + '</td>' +
+        '<td>' + (c.descripcion || "") + '</td>' +
+        '<td><input type="text" class="costo-folio-input" data-id="' + c.id + '" value="' + (c.folio || "") + '" placeholder="Sin folio" style="width:90px;"></td>' +
+        '<td class="num tabular">' + fmtCLP(c.monto) + '</td>' +
+        '<td><span class="badge tipo-nd"><span class="dot"></span>' + origenLabel + '</span></td>' +
+        '<td><button class="btn ghost small costo-del-btn" data-id="' + c.id + '" type="button" title="Eliminar costo">✕</button></td>' +
+        '</tr>';
+    }).join("");
+    var totalMonto = list.reduce(function(s,c){ return s + (Number(c.monto) || 0); }, 0);
+    totals.innerHTML = '<tr><td colspan="3" style="text-align:right; font-weight:700;">Total</td><td class="num tabular" style="font-weight:700;">' + fmtCLP(totalMonto) + '</td><td colspan="2"></td></tr>';
+    body.querySelectorAll(".costo-del-btn").forEach(function(btn){
+      btn.addEventListener("click", function(){
+        deleteCosto(btn.getAttribute("data-id"));
+      });
+    });
+    body.querySelectorAll(".costo-folio-input").forEach(function(inp){
+      inp.addEventListener("change", function(){
+        var id = inp.getAttribute("data-id");
+        var costo = (state.costos || []).find(function(c){ return c.id === id; });
+        if (!costo) return;
+        costo.folio = inp.value.trim();
+        saveCostosStore();
+        renderAll();
+        autoPublicarCambioCompartido();
+        showToast("Folio actualizado.");
+      });
+    });
+  }
+
+  // ---------- Semáforo mensual ----------
+  function semaforoAniosDisponibles(){
+    var anios = {};
+    (state.facturas || []).forEach(function(f){
+      if (f.emision) anios[new Date(f.emision).getFullYear()] = true;
+    });
+    var actual = new Date().getFullYear();
+    anios[actual] = true;
+    return Object.keys(anios).map(Number).sort(function(a,b){ return b - a; });
+  }
+
+  function poblarSemaforoYear(){
+    var sel = document.getElementById("semaforo-year");
+    if (!sel) return;
+    var anios = semaforoAniosDisponibles();
+    var actual = String(new Date().getFullYear());
+    if (!state.semaforoYear) state.semaforoYear = actual;
+    sel.innerHTML = anios.map(function(a){
+      return '<option value="' + a + '"' + (String(a) === state.semaforoYear ? " selected" : "") + '>' + a + '</option>';
+    }).join("");
+  }
+
+  function renderSemaforo(){
+    var grid = document.getElementById("semaforo-grid");
+    if (!grid) return;
+    poblarSemaforoYear();
+    var anio = Number(state.semaforoYear || new Date().getFullYear());
+    var facturasAnio = (state.facturas || []).filter(function(f){
+      return f.emision && new Date(f.emision).getFullYear() === anio;
+    });
+    grid.innerHTML = MESES_LARGO.map(function(nombreMes, idxMes){
+      var facturasMes = facturasAnio.filter(function(f){ return new Date(f.emision).getMonth() === idxMes; });
+      var facturado = facturasMes.reduce(function(s,f){ return s + facturadoDe(f); }, 0);
+      var vencido = facturasMes.reduce(function(s,f){
+        return s + (estadoDe(f) === "vencido" ? saldoDe(f) : 0);
+      }, 0);
+      var pctVencido = facturado > 0 ? (vencido / facturado) * 100 : 0;
+      var colorCobranza = "gris";
+      if (facturasMes.length){
+        colorCobranza = pctVencido >= 30 ? "rojo" : (pctVencido >= 5 ? "amarillo" : "verde");
+      }
+      var facturasConCosto = facturasMes.filter(function(f){ return costoDeFactura(f.folio) > 0; });
+      var colorRenta = "gris";
+      var margenTxt = "Sin costos";
+      if (facturasConCosto.length){
+        var margenes = facturasConCosto.map(margenPctDe).filter(function(v){ return v !== null; });
+        var promedio = margenes.length ? margenes.reduce(function(s,v){ return s + v; }, 0) / margenes.length : null;
+        if (promedio !== null){
+          colorRenta = promedio >= 30 ? "verde" : (promedio >= 10 ? "amarillo" : "rojo");
+          margenTxt = promedio.toFixed(0) + "%";
+        }
+      }
+      return '<div class="semaforo-card">' +
+        '<div class="mes">' + nombreMes + ' ' + anio + '</div>' +
+        '<div class="semaforo-row"><span class="semaforo-dot ' + colorCobranza + '"></span><span class="semaforo-label">Cobranza</span><span class="semaforo-val">' + (facturasMes.length ? pctVencido.toFixed(0) + "% venc." : "—") + '</span></div>' +
+        '<div class="semaforo-row"><span class="semaforo-dot ' + colorRenta + '"></span><span class="semaforo-label">Rentabilidad</span><span class="semaforo-val">' + margenTxt + '</span></div>' +
+        '</div>';
+    }).join("");
+  }
+
   // Marca "Anulada (NC)" las facturas cuyas NC cubren el total; las parciales
   // solo rebajan el saldo (ver saldoDe).
   // Aplica el efecto de las NC sobre las facturas (marca anulada si la cubren
@@ -4478,6 +4869,8 @@
     renderCobranza();
     renderClientes();
     renderReportes();
+    renderCostos();
+    renderSemaforo();
     renderBell();
     refreshScrollArrows();
   }
@@ -4780,6 +5173,14 @@
       e.target.hidden = true;
     }
   });
+  document.getElementById("chart-prev-btn").addEventListener("click", function(){
+    chartMonthOffset += 1;
+    renderChart();
+  });
+  document.getElementById("chart-next-btn").addEventListener("click", function(){
+    chartMonthOffset = Math.max(0, chartMonthOffset - 1);
+    renderChart();
+  });
   document.getElementById("export-cobranza-csv-btn").addEventListener("click", function(){
     exportTableCSV("table-cobranza", "cobranza-dmz");
   });
@@ -4804,6 +5205,30 @@
     var text = document.getElementById("import-paste").value;
     if (!text || !text.trim()){ showImportLog("Pega el contenido del CSV en el cuadro de texto primero.", true); return; }
     runImport(text);
+  });
+
+  document.getElementById("new-costo-form").addEventListener("submit", function(e){
+    e.preventDefault();
+    var ok = addCosto({
+      fecha: document.getElementById("co-fecha").value,
+      monto: document.getElementById("co-monto").value,
+      folio: document.getElementById("co-folio").value,
+      descripcion: document.getElementById("co-descripcion").value
+    });
+    if (ok){
+      e.target.reset();
+    }
+  });
+
+  document.getElementById("import-honorarios-btn").addEventListener("click", function(){
+    var text = document.getElementById("import-honorarios-paste").value;
+    if (!text || !text.trim()){ showImportHonorariosLog("Pega el contenido del CSV en el cuadro de texto primero.", true); return; }
+    runImportHonorarios(text);
+  });
+
+  document.getElementById("semaforo-year").addEventListener("change", function(e){
+    state.semaforoYear = e.target.value;
+    renderSemaforo();
   });
 
   document.getElementById("cartola-btn").addEventListener("click", function(){
