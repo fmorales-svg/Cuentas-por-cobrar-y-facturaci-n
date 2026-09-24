@@ -540,15 +540,8 @@
     padding: 8px 10px;
     border-bottom: 1px solid var(--gridline);
     white-space: nowrap;
-    /* Encabezado congelado (ver también el JS de más abajo: position:sticky
-       en un <th> dentro de una tabla no queda 100% confiable en todos los
-       navegadores/combinaciones, así que el freeze real del encabezado lo
-       hace un pequeño script al hacer scroll). */
-    position: relative;
     background: var(--surface);
-    z-index: 2;
   }
-  thead th:first-child{ z-index: 3; }
   tbody td{
     padding: 10px 10px;
     border-bottom: 1px solid var(--gridline);
@@ -2606,6 +2599,21 @@
         rutInput.type = "text"; rutInput.className = "contact-input"; rutInput.style.width = "110px"; rutInput.value = f.rut;
         rutTd.appendChild(rutInput);
 
+        // Tipo de monto (Afecta/Exenta): antes al editar no se veía cuál era
+        // el tipo de la factura, solo los 3 montos sueltos. Este selector lo
+        // marca de entrada (según si ya tiene exento cargado) y, si lo
+        // cambias, traspasa el monto al campo que corresponde — igual que en
+        // "Agregar factura manual".
+        var tipoSelect = document.createElement("select");
+        tipoSelect.className = "pago-input";
+        tipoSelect.style.width = "88px"; tipoSelect.style.marginBottom = "4px";
+        tipoSelect.title = "Tipo de monto de esta factura";
+        tipoSelect.innerHTML = '<option value="afecta">Afecta</option><option value="exenta">Exenta</option>';
+        var esExentaInicial = (Number(f.neto) || 0) === 0 && (Number(f.exento) || 0) > 0;
+        tipoSelect.value = esExentaInicial ? "exenta" : "afecta";
+        netoTd.appendChild(tipoSelect);
+        netoTd.appendChild(document.createElement("br"));
+
         var netoInput = document.createElement("input");
         netoInput.type = "number"; netoInput.className = "pago-input"; netoInput.min = "0"; netoInput.value = f.neto;
         netoTd.appendChild(netoInput);
@@ -2627,6 +2635,22 @@
           var n = Number(netoInput.value) || 0, i = Number(ivaInput.value) || 0, x = Number(exentoInput.value) || 0;
           totalTd.querySelector("strong").textContent = fmtCLP(n + i + x);
         }
+        tipoSelect.addEventListener("change", function(){
+          // Traspasa lo que ya estaba escrito al campo que corresponde al
+          // tipo nuevo, en vez de dejarlo perdido en un campo que ya no aplica.
+          if (tipoSelect.value === "exenta"){
+            var monto = netoInput.value !== "" ? netoInput.value : exentoInput.value;
+            exentoInput.value = monto;
+            netoInput.value = "0";
+            ivaInput.value = "0";
+          } else {
+            var montoVuelta = exentoInput.value !== "" ? exentoInput.value : netoInput.value;
+            netoInput.value = montoVuelta;
+            exentoInput.value = "";
+            ivaInput.value = "";
+          }
+          recalcTotalPreview();
+        });
         netoInput.addEventListener("input", function(){
           // Si se borra el neto, no tiene sentido dejar un IVA suelto: se
           // limpia solo (si quieres un IVA sin neto asociado, vuelve a
@@ -3641,7 +3665,20 @@
     }
   }
 
-  async function publishToGitHub(){
+  // Publicaciones encoladas: si ya hay una publicación en curso y llega otra
+  // (p.ej. dos guardados casi seguidos, o el auto-publish disparado por varias
+  // ediciones rápidas), la nueva espera a que la anterior termine en vez de
+  // correr en paralelo. Esa era la causa del error 409 "el archivo cambió en
+  // GitHub justo en este momento": dos llamadas leían el mismo "sha" viejo casi
+  // al mismo tiempo, la primera publicaba y cambiaba el sha, y la segunda
+  // intentaba publicar con el sha que ya había quedado obsoleto.
+  var _ghPublishChain = Promise.resolve();
+  function publishToGitHub(){
+    _ghPublishChain = _ghPublishChain.then(_publishToGitHubOnce, _publishToGitHubOnce);
+    return _ghPublishChain;
+  }
+
+  async function _publishToGitHubOnce(){
     var cfg = state.githubConfig;
     if (!cfg.owner || !cfg.repo || !cfg.token){
       showPublishLog("Completa usuario, repositorio y token, y guarda la configuración antes de publicar.", true);
@@ -3654,50 +3691,62 @@
     var originalText = btn.textContent;
     btn.disabled = true;
     btn.textContent = "Publicando...";
+    // Además de encolar, si por otra razón igual llega un 409 (por ejemplo,
+    // alguien publicando desde otro computador exactamente en ese segundo),
+    // se reintenta solo, releyendo el "sha" actualizado, antes de mostrarle
+    // cualquier error al usuario.
+    var MAX_INTENTOS = 3;
     try {
-      var sha = null;
-      var getResp = await fetch(apiUrl + "?ref=" + encodeURIComponent(branch), {
-        headers: { "Authorization": "token " + cfg.token, "Accept": "application/vnd.github+json" }
-      });
-      if (getResp.status === 200){
-        var getData = await getResp.json();
-        sha = getData.sha;
-      } else if (getResp.status !== 404){
-        var errBody = await getResp.text();
-        throw new Error("No se pudo leer el archivo actual en GitHub (código " + getResp.status + "). " + errBody.slice(0,200));
-      }
+      for (var intento = 1; intento <= MAX_INTENTOS; intento++){
+        var sha = null;
+        var getResp = await fetch(apiUrl + "?ref=" + encodeURIComponent(branch), {
+          headers: { "Authorization": "token " + cfg.token, "Accept": "application/vnd.github+json" }
+        });
+        if (getResp.status === 200){
+          var getData = await getResp.json();
+          sha = getData.sha;
+        } else if (getResp.status !== 404){
+          var errBody = await getResp.text();
+          throw new Error("No se pudo leer el archivo actual en GitHub (código " + getResp.status + "). " + errBody.slice(0,200));
+        }
 
-      var json = buildFacturasJSON();
-      var body = {
-        message: "Actualiza facturas.json desde el dashboard (" + new Date().toLocaleString("es-CL") + ")",
-        content: utf8ToBase64(json),
-        branch: branch
-      };
-      if (sha) body.sha = sha;
+        var json = buildFacturasJSON();
+        var body = {
+          message: "Actualiza facturas.json desde el dashboard (" + new Date().toLocaleString("es-CL") + ")",
+          content: utf8ToBase64(json),
+          branch: branch
+        };
+        if (sha) body.sha = sha;
 
-      var putResp = await fetch(apiUrl, {
-        method: "PUT",
-        headers: {
-          "Authorization": "token " + cfg.token,
-          "Accept": "application/vnd.github+json",
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(body)
-      });
+        var putResp = await fetch(apiUrl, {
+          method: "PUT",
+          headers: {
+            "Authorization": "token " + cfg.token,
+            "Accept": "application/vnd.github+json",
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(body)
+        });
 
-      if (putResp.status === 200 || putResp.status === 201){
-        showPublishLog(
-          "<strong>Publicado correctamente en GitHub</strong> (" + state.invoices.length + " facturas).<br>" +
-          "Las demás personas lo van a ver al recargar el link en 1-2 minutos."
-        );
-        showToast("facturas.json publicado en GitHub.");
-      } else {
+        if (putResp.status === 200 || putResp.status === 201){
+          showPublishLog(
+            "<strong>Publicado correctamente en GitHub</strong> (" + state.invoices.length + " facturas).<br>" +
+            "Las demás personas lo van a ver al recargar el link en 1-2 minutos."
+          );
+          showToast("facturas.json publicado en GitHub.");
+          return;
+        }
+
+        if (putResp.status === 409 && intento < MAX_INTENTOS){
+          continue; // reintenta con el sha recién leído, sin molestar al usuario
+        }
+
         var errText = await putResp.text();
         var msg = "Error al publicar (código " + putResp.status + "). ";
         if (putResp.status === 401) msg += "El token no es válido, no se guardó bien, o expiró.";
         else if (putResp.status === 404) msg += "No encuentro ese repositorio o esa ruta — revisa usuario, repositorio y rama.";
         else if (putResp.status === 403) msg += "El token no tiene permiso de escritura sobre este repositorio (revisa que el permiso sea 'Contents: Read and write' y que el repo esté incluido).";
-        else if (putResp.status === 409) msg += "El archivo cambió en GitHub justo en este momento — intenta de nuevo.";
+        else if (putResp.status === 409) msg += "El archivo siguió cambiando en GitHub incluso después de reintentar solo — vuelve a intentarlo en unos segundos.";
         else msg += errText.slice(0,200);
         throw new Error(msg);
       }
@@ -4985,21 +5034,6 @@
       scroller._updateScrollArrows = updateArrows;
       updateArrows();
 
-      // Encabezado congelado: como el CSS "position: sticky" en celdas de
-      // tabla no siempre respeta el contenedor con scroll acotado, se fija
-      // "a mano" corriendo el encabezado hacia abajo lo mismo que se
-      // desplazó el scroll vertical (así queda pegado arriba, igual que un
-      // freeze panel de Excel).
-      var thead = scroller.querySelector("thead");
-      if (thead){
-        var ths = thead.querySelectorAll("th");
-        scroller.addEventListener("scroll", function(){
-          var y = Math.max(0, scroller.scrollTop);
-          // "transform" no mueve celdas de tabla en algunos navegadores —
-          // "top" con position:relative sobre un <th> sí funciona siempre.
-          ths.forEach(function(th){ th.style.top = y + "px"; });
-        });
-      }
     });
   }
   function refreshScrollArrows(){
