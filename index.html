@@ -602,6 +602,25 @@
   #table-facturas tbody tr:hover td:nth-child(2), #table-cobranza tbody tr:hover td:nth-child(2){
     background: var(--surface-2);
   }
+
+  /* En pantallas angostas, el Folio y la Razón social (columnas fijas) dejan
+     muy poco espacio visible para el resto — se angostan y el texto de toda
+     la tabla se comprime un poco para que se alcance a ver más de un golpe. */
+  @media (max-width: 480px){
+    #table-facturas thead th:first-child, #table-facturas tbody td:first-child,
+    #table-cobranza thead th:first-child, #table-cobranza tbody td:first-child{
+      width: 44px; min-width: 44px; max-width: 44px;
+    }
+    #table-facturas thead th:nth-child(2), #table-facturas tbody td:nth-child(2),
+    #table-cobranza thead th:nth-child(2), #table-cobranza tbody td:nth-child(2){
+      left: 44px;
+      min-width: 96px;
+      max-width: 112px;
+    }
+    thead th{ font-size: 9.5px; padding: 6px 6px; }
+    tbody td{ font-size: 12px; padding: 7px 6px; }
+    td.razon{ max-width: 112px; }
+  }
   td.num, th.num{ text-align: right; font-variant-numeric: tabular-nums; }
   td.razon{ white-space: normal; max-width: 220px; }
 
