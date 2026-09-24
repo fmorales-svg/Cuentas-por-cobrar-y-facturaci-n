@@ -2724,13 +2724,13 @@
         '<td class="razon">' + f.razonSocial + '</td>' +
         '<td class="tabular">' + f.rut + '</td>' +
         '<td class="num tabular">' + (
-          f.neto === 0 && f.exento > 0
-            ? fmtCLP(f.exento) + '<div style="font-size:10.5px; color:var(--muted);">exento</div>'
+          (Number(f.iva) || 0) === 0 && (f.neto + (f.exento || 0)) > 0
+            ? fmtCLP(f.neto + (f.exento || 0)) + '<div style="font-size:10.5px; color:var(--muted);">exento</div>'
             : fmtCLP(f.neto)
         ) + '</td>' +
         '<td class="num tabular">' + fmtCLP(f.iva) + '</td>' +
         '<td class="num tabular"><strong>' + fmtCLP(f.total) + '</strong>' +
-          (f.exento > 0 && f.neto > 0 ? '<div style="font-size:10.5px; color:var(--muted);">incl. ' + fmtCLP(f.exento) + ' exento</div>' : '') + '</td>' +
+          (f.exento > 0 && f.neto > 0 && (Number(f.iva) || 0) > 0 ? '<div style="font-size:10.5px; color:var(--muted);">incl. ' + fmtCLP(f.exento) + ' exento</div>' : '') + '</td>' +
         '<td class="num tabular">' + fmtCLP(pagado) + '</td>' +
         '<td class="num tabular">' + fmtCLP(saldo) + '</td>' +
         '<td>' + fmtDate(new Date(f.emision)) + '</td>' +
