@@ -1,6 +1,30 @@
 {
   "documentos": [
     {
+      "folio": 100002,
+      "razonSocial": "Chinos (Iva)",
+      "rut": "0",
+      "neto": 1440000,
+      "iva": 273600,
+      "total": 1713600,
+      "emision": "2026-03-24",
+      "vencimiento": "2026-04-23",
+      "pagada": false,
+      "montoPagado": 0
+    },
+    {
+      "folio": 100001,
+      "razonSocial": "Chinos (Iva y Renta)",
+      "rut": "0",
+      "neto": 4090000,
+      "iva": 777100,
+      "total": 4867100,
+      "emision": "2026-02-04",
+      "vencimiento": "2026-03-06",
+      "pagada": true,
+      "montoPagado": 4867100
+    },
+    {
       "folio": 100000,
       "razonSocial": "Chinos (Renta)",
       "rut": "0",
