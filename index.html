@@ -2179,6 +2179,7 @@
     f.montoPagado = f.total;
     saveData();
     renderAll();
+    autoPublicarCambioCompartido();
     showToast("Factura folio " + f.folio + " marcada como pagada.");
   }
 
@@ -2193,6 +2194,7 @@
     f.pagada = monto >= f.total;
     saveData();
     renderAll();
+    autoPublicarCambioCompartido();
     if (f.pagada) showToast("Factura folio " + f.folio + " marcada como pagada.");
     else if (monto > 0) showToast("Pago parcial registrado en folio " + f.folio + ": " + fmtCLP(monto) + ".");
     else showToast("Pago de folio " + f.folio + " limpiado.");
@@ -2202,6 +2204,7 @@
     f.rechazada = !f.rechazada;
     saveData();
     renderAll();
+    autoPublicarCambioCompartido();
     showToast(f.rechazada
       ? "Folio " + f.folio + " marcado como rechazado por el cliente."
       : "Folio " + f.folio + " ya no está marcado como rechazado.");
@@ -2211,6 +2214,7 @@
     state.invoices = state.invoices.filter(function(x){ return x !== f; });
     saveData();
     renderAll();
+    autoPublicarCambioCompartido();
     showToast("Factura folio " + f.folio + " eliminada.");
   }
 
@@ -2249,6 +2253,7 @@
     if (folio > folioSeq) folioSeq = folio;
     saveData();
     renderAll();
+    autoPublicarCambioCompartido();
     showToast("Factura folio " + folio + " (" + razon + ") agregada por " + fmtCLP(total) + ".");
     return true;
   }
@@ -2275,6 +2280,7 @@
     saveData();
     state.editingFolio = null;
     renderAll();
+    autoPublicarCambioCompartido();
     showToast("Factura folio " + f.folio + " actualizada.");
     return true;
   }
@@ -2461,6 +2467,7 @@
       function saveResponsable(){
         f.responsable = respInput.value.trim();
         saveData();
+        autoPublicarCambioCompartido();
         showToast("Responsable de folio " + f.folio + ": " + (f.responsable || "(vacío)") + ".");
       }
       respSaveBtn.addEventListener("click", saveResponsable);
@@ -2485,6 +2492,7 @@
       function saveConcepto(){
         f.concepto = concInput.value.trim();
         saveData();
+        autoPublicarCambioCompartido();
         showToast("Concepto/glosa de folio " + f.folio + " guardado.");
       }
       concSaveBtn.addEventListener("click", saveConcepto);
@@ -3639,6 +3647,7 @@
     // facturas ya cargadas aunque no haya facturas nuevas.
     saveData();
     renderAll();
+    autoPublicarCambioCompartido();
 
     var totalNuevo = result.nuevas.reduce(function(s,f){ return s + f.total; }, 0);
     var totalNC = sumaNC(result.nuevasNC);
@@ -4457,14 +4466,21 @@
   }
   pintarCamposEmailjs();
 
-  document.getElementById("github-form").addEventListener("submit", function(e){
-    e.preventDefault();
+  // Lee los 4 campos del formulario hacia state.githubConfig y los guarda en
+  // este navegador. La usan tanto "Guardar configuración" como "Guardar y
+  // publicar en GitHub", para que este último funcione con un solo clic aunque
+  // nunca se haya guardado antes.
+  function guardarConfigGithubDesdeCampos(){
     state.githubConfig.owner = document.getElementById("gh-owner").value.trim();
     state.githubConfig.repo = document.getElementById("gh-repo").value.trim();
     state.githubConfig.branch = document.getElementById("gh-branch").value.trim() || "main";
     var tokenVal = document.getElementById("gh-token").value.trim();
     if (tokenVal) state.githubConfig.token = tokenVal;
     saveGithubConfig();
+  }
+  document.getElementById("github-form").addEventListener("submit", function(e){
+    e.preventDefault();
+    guardarConfigGithubDesdeCampos();
     showToast("Configuración de GitHub guardada en este navegador.");
   });
   document.getElementById("gh-owner").value = state.githubConfig.owner;
@@ -4472,7 +4488,10 @@
   document.getElementById("gh-branch").value = state.githubConfig.branch;
   document.getElementById("gh-token").value = state.githubConfig.token;
 
-  document.getElementById("publish-github-btn").addEventListener("click", publishToGitHub);
+  document.getElementById("publish-github-btn").addEventListener("click", function(){
+    guardarConfigGithubDesdeCampos();
+    publishToGitHub();
+  });
 
   var sidebar = document.getElementById("sidebar");
   var overlay = document.getElementById("sidebar-overlay");
