@@ -2473,7 +2473,12 @@
     var razon = (data.razon || "").trim();
     var rut = (data.rut || "").trim();
     var neto = Number(data.neto);
-    var iva = Number(data.iva);
+    // Igual que al agregar una factura manual: si dejas IVA vacío (no si
+    // pones 0 a propósito, como en una Exenta), se calcula solo al 19% del
+    // neto en vez de guardarse como $0.
+    var iva = data.iva === "" || data.iva === undefined || data.iva === null
+      ? Math.round((isFinite(neto) ? neto : 0) * 0.19)
+      : Number(data.iva);
     var exento = data.exento === undefined || data.exento === null ? (f.exento || 0) : (Number(data.exento) || 0);
     if (!razon || !rut || !isFinite(neto) || neto < 0 || !isFinite(iva) || iva < 0 || !isFinite(exento) || exento < 0 || !data.vencimiento){
       showToast("Revisa los datos: razón social, RUT, montos y vencimiento no pueden quedar vacíos o negativos.");
@@ -3684,9 +3689,20 @@
   // resto del equipo lo vea sin que el editor tenga que acordarse de apretar
   // "Guardar y publicar". Si no hay token configurado, no hace nada (los
   // cambios quedan solo en este navegador) y avisa una sola vez con un toast.
+  var _autopublishTimer = null;
   function autoPublicarCambioCompartido(){
     if (state.githubConfig && state.githubConfig.owner && state.githubConfig.repo && state.githubConfig.token){
-      publishToGitHub();
+      // Si haces varios cambios muy seguidos (por ejemplo, marcar 3 facturas
+      // "pagada" una tras otra), agrupamos todo en UNA sola publicación en
+      // vez de una por cada click: se espera un momentito después del último
+      // cambio antes de publicar, y mientras tanto cada cambio nuevo reinicia
+      // la espera. Así se manda un solo commit con todo junto, en vez de
+      // varios casi simultáneos que pueden chocar entre sí (error 409).
+      if (_autopublishTimer) clearTimeout(_autopublishTimer);
+      _autopublishTimer = setTimeout(function(){
+        _autopublishTimer = null;
+        publishToGitHub();
+      }, 800);
     } else {
       showToast("Guardado en este navegador. Configura GitHub abajo para que el resto del equipo también lo vea.");
     }
