@@ -504,6 +504,20 @@
   .search:focus-visible{ outline: 2px solid var(--accent); }
 
   .table-scroll{ overflow-x: auto; }
+  .scroll-wrap{ position: relative; }
+  .scroll-arrow{
+    position: absolute; top: 50%; transform: translateY(-50%);
+    z-index: 5; width: 30px; height: 30px; border-radius: 50%;
+    border: 1px solid var(--border); background: var(--surface);
+    color: var(--accent); font-size: 15px; font-weight: 700;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 6px rgba(0,0,0,.15);
+  }
+  .scroll-arrow:hover{ background: var(--accent-soft); }
+  .scroll-arrow.left{ left: 2px; }
+  .scroll-arrow.right{ right: 2px; }
+  .scroll-arrow[hidden]{ display: none; }
+  @media (min-width: 900px){ .scroll-arrow{ display: none !important; } }
   table{
     width: 100%;
     border-collapse: collapse;
@@ -4098,6 +4112,9 @@
       document.getElementById("view-title").textContent = meta.title;
       document.getElementById("view-desc").textContent = meta.desc;
     }
+    // Recién visible: recién ahora el navegador sabe su ancho real, así que
+    // hay que recalcular si hace falta mostrar las flechas de desplazamiento.
+    if (typeof refreshScrollArrows === "function") setTimeout(refreshScrollArrows, 0);
   }
 
   async function triggerDownload(filename, content, mime){
@@ -4313,6 +4330,7 @@
     renderClientes();
     renderReportes();
     renderBell();
+    refreshScrollArrows();
   }
 
   document.querySelectorAll(".chip").forEach(function(chip){
@@ -4846,6 +4864,45 @@
     if (window.emailjs && state.emailjsConfig.publicKey) window.emailjs.init(state.emailjsConfig.publicKey);
   } catch(e) { /* EmailJS no disponible en este visor (CDN bloqueado); el botón cae al mailto de siempre. */ }
 
+  // Flechitas para desplazar las tablas hacia los lados en pantallas angostas
+  // (celular), donde hay demasiadas columnas para verlas todas de una vez.
+  function enhanceScrollArrows(){
+    document.querySelectorAll(".table-scroll").forEach(function(scroller){
+      if (scroller.closest(".scroll-wrap")) return; // ya tiene flechas
+      var wrap = document.createElement("div");
+      wrap.className = "scroll-wrap";
+      scroller.parentNode.insertBefore(wrap, scroller);
+      wrap.appendChild(scroller);
+
+      var left = document.createElement("button");
+      left.type = "button"; left.className = "scroll-arrow left"; left.innerHTML = "‹";
+      left.setAttribute("aria-label", "Desplazar tabla hacia la izquierda");
+      var right = document.createElement("button");
+      right.type = "button"; right.className = "scroll-arrow right"; right.innerHTML = "›";
+      right.setAttribute("aria-label", "Desplazar tabla hacia la derecha");
+      wrap.appendChild(left);
+      wrap.appendChild(right);
+
+      function updateArrows(){
+        var max = scroller.scrollWidth - scroller.clientWidth;
+        left.hidden = scroller.scrollLeft <= 2;
+        right.hidden = max <= 2 || scroller.scrollLeft >= max - 2;
+      }
+      left.addEventListener("click", function(){ scroller.scrollBy({ left: -180, behavior: "smooth" }); });
+      right.addEventListener("click", function(){ scroller.scrollBy({ left: 180, behavior: "smooth" }); });
+      scroller.addEventListener("scroll", updateArrows);
+      window.addEventListener("resize", updateArrows);
+      scroller._updateScrollArrows = updateArrows;
+      updateArrows();
+    });
+  }
+  function refreshScrollArrows(){
+    document.querySelectorAll(".table-scroll").forEach(function(scroller){
+      if (scroller._updateScrollArrows) scroller._updateScrollArrows();
+    });
+  }
+
+  enhanceScrollArrows();
   setView("resumen");
   loadInvoices().then(function(invoices){
     setDocs(invoices);
