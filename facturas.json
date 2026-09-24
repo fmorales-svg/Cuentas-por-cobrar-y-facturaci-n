@@ -23,8 +23,8 @@
       "total": 1440000,
       "emision": "2026-06-24",
       "vencimiento": "2026-07-24",
-      "pagada": false,
-      "montoPagado": 0,
+      "pagada": true,
+      "montoPagado": 1440000,
       "responsable": "",
       "concepto": "",
       "exento": 1440000
@@ -38,8 +38,8 @@
       "total": 1980000,
       "emision": "2026-05-24",
       "vencimiento": "2026-06-23",
-      "pagada": false,
-      "montoPagado": 0,
+      "pagada": true,
+      "montoPagado": 1980000,
       "exento": 1980000,
       "responsable": "",
       "concepto": ""
@@ -53,8 +53,8 @@
       "total": 5980000,
       "emision": "2026-04-24",
       "vencimiento": "2026-05-24",
-      "pagada": false,
-      "montoPagado": 0,
+      "pagada": true,
+      "montoPagado": 5980000,
       "exento": 5980000,
       "responsable": "",
       "concepto": ""
@@ -1194,8 +1194,8 @@
       "total": 1440000,
       "emision": "2026-08-24",
       "vencimiento": "2026-09-22",
-      "pagada": false,
-      "montoPagado": 0,
+      "pagada": true,
+      "montoPagado": 1440000,
       "origen": "manual"
     }
   ],
