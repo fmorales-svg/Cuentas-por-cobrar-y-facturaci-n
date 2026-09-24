@@ -4,16 +4,16 @@
       "folio": 100006,
       "razonSocial": "Chinos (Iva)",
       "rut": "0",
-      "neto": 0,
+      "neto": 1440000,
       "iva": 0,
-      "total": 1380000,
+      "total": 1440001,
       "emision": "2026-06-24",
       "vencimiento": "2026-07-24",
       "pagada": false,
       "montoPagado": 0,
       "responsable": "",
       "concepto": "",
-      "exento": 1380000
+      "exento": 1
     },
     {
       "folio": 100005,
