@@ -1426,7 +1426,7 @@
       </div>
       <div class="panel-toolbar">
         <select id="semaforo-year"></select>
-        <span class="info-tip" tabindex="0"><i class="ic">i</i><span class="bubble">Cobranza: verde si casi nada está vencido, amarillo si hay algo vencido, rojo si hay bastante vencido. Rentabilidad: verde/amarillo/rojo según el margen (facturado menos costos) de las facturas de ese mes que ya tienen costo cargado. Gris = todavía no hay costos cargados para ese mes.</span></span>
+        <span class="info-tip" tabindex="0"><i class="ic">i</i><span class="bubble">Facturación: compara lo facturado ese mes (neto de notas de crédito) contra la meta mensual configurada en Ajustes — verde si llegó al 100% o más, amarillo 70-99%, rojo bajo 70%. Gris = ese mes no tiene meta configurada. Rentabilidad: verde/amarillo/rojo según el margen (facturado menos costos) de las facturas de ese mes que ya tienen costo cargado. Gris = todavía no hay costos cargados para ese mes.</span></span>
       </div>
       <div class="semaforo-grid" id="semaforo-grid"></div>
     </section>
@@ -4338,14 +4338,17 @@
     });
     grid.innerHTML = MESES_LARGO.map(function(nombreMes, idxMes){
       var facturasMes = facturasAnio.filter(function(f){ return new Date(f.emision).getMonth() === idxMes; });
-      var facturado = facturasMes.reduce(function(s,f){ return s + facturadoDe(f); }, 0);
-      var vencido = facturasMes.reduce(function(s,f){
-        return s + (estadoDe(f) === "vencido" ? saldoDe(f) : 0);
-      }, 0);
-      var pctVencido = facturado > 0 ? (vencido / facturado) * 100 : 0;
-      var colorCobranza = "gris";
-      if (facturasMes.length){
-        colorCobranza = pctVencido >= 30 ? "rojo" : (pctVencido >= 5 ? "amarillo" : "verde");
+      var ncMes = sumaNC((state.notasCredito || []).filter(function(nc){
+        return nc.fecha && new Date(nc.fecha).getFullYear() === anio && new Date(nc.fecha).getMonth() === idxMes;
+      }));
+      var facturado = facturasMes.reduce(function(s,f){ return s + facturadoDe(f); }, 0) - ncMes;
+      var metaMes = metaDelMes(idxMes + 1);
+      var colorFacturacion = "gris";
+      var facturacionTxt = fmtCLP(facturado);
+      if (metaMes > 0){
+        var pctMeta = (facturado / metaMes) * 100;
+        colorFacturacion = pctMeta >= 100 ? "verde" : (pctMeta >= 70 ? "amarillo" : "rojo");
+        facturacionTxt = pctMeta.toFixed(0) + "% de meta";
       }
       var facturasConCosto = facturasMes.filter(function(f){ return costoDeFactura(f.folio) > 0; });
       var colorRenta = "gris";
@@ -4360,7 +4363,7 @@
       }
       return '<div class="semaforo-card">' +
         '<div class="mes">' + nombreMes + ' ' + anio + '</div>' +
-        '<div class="semaforo-row"><span class="semaforo-dot ' + colorCobranza + '"></span><span class="semaforo-label">Cobranza</span><span class="semaforo-val">' + (facturasMes.length ? pctVencido.toFixed(0) + "% venc." : "—") + '</span></div>' +
+        '<div class="semaforo-row"><span class="semaforo-dot ' + colorFacturacion + '"></span><span class="semaforo-label">Facturación</span><span class="semaforo-val">' + facturacionTxt + '</span></div>' +
         '<div class="semaforo-row"><span class="semaforo-dot ' + colorRenta + '"></span><span class="semaforo-label">Rentabilidad</span><span class="semaforo-val">' + margenTxt + '</span></div>' +
         '</div>';
     }).join("");
