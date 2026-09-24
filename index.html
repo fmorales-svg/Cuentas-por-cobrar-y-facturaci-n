@@ -5,6 +5,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
   :root{
     color-scheme: light;
@@ -913,6 +914,7 @@
         <input class="search" id="global-search" type="search" placeholder="Buscar folio, cliente o RUT…" aria-label="Buscar en todo el dashboard">
         <div id="global-search-results" class="global-search-results" hidden></div>
       </div>
+      <button class="btn ghost small" id="undo-btn" type="button" title="Deshacer el último cambio (marcar pagada, eliminar, editar, etc.)" disabled>↩ Deshacer</button>
       <button class="btn ghost small" id="theme-btn" type="button" title="Cambiar fondo: automático (según el dispositivo), oscuro o claro">🌗 Auto</button>
       <button class="btn ghost small" id="density-btn" type="button" title="Alternar entre vista normal y compacta de las tablas">↕ Compacto</button>
       <button class="btn ghost small" id="print-pdf-btn" type="button" title="Exportar todo el dashboard a PDF (usa Imprimir → Guardar como PDF)">🖨 Exportar PDF</button>
@@ -1064,6 +1066,11 @@
             <label for="ni-iva">IVA (CLP)</label>
             <input type="number" id="ni-iva" min="0" step="1" placeholder="Se calcula solo si lo dejas vacío">
           </div>
+          <div class="field" style="flex:1; min-width:130px;">
+            <label for="ni-exento">Monto exento (CLP)</label>
+            <input type="number" id="ni-exento" min="0" step="1" placeholder="0">
+            <div class="field-hint">Solo si la factura tiene una parte exenta de IVA.</div>
+          </div>
           <div class="field" style="flex:1; min-width:150px;">
             <label for="ni-emision">Fecha emisión</label>
             <input type="date" id="ni-emision">
@@ -1091,6 +1098,7 @@
               <th class="num sortable" data-key="total" data-type="number">Total<span class="arrow">▲</span></th>
               <th class="num sortable" data-key="_pagado" data-type="number">Pagado<span class="arrow">▲</span></th>
               <th class="num sortable" data-key="_saldo" data-type="number">Saldo<span class="arrow">▲</span></th>
+              <th class="sortable" data-key="emision" data-type="date">Emisión<span class="arrow">▲</span></th>
               <th class="sortable" data-key="vencimiento" data-type="date">Vencimiento<span class="arrow">▲</span></th>
               <th class="sortable" data-key="_estado" data-type="text">Estado<span class="arrow">▲</span></th>
               <th class="sortable" data-key="_responsable" data-type="text">Responsable<span class="arrow">▲</span></th>
@@ -1134,6 +1142,7 @@
         <span class="hint">vencidas primero, luego por días restantes</span>
       </div>
       <div class="panel-toolbar">
+        <input class="search" id="search-cobranza" type="search" placeholder="Buscar por razón social, RUT o folio…" aria-label="Buscar en cobranza">
         <button class="btn ghost tiny" id="export-cobranza-csv-btn" type="button">⬇ Descargar tabla (Excel/CSV)</button>
         <button class="btn ghost tiny" id="toggle-kanban-btn" type="button">🗂 Vista Kanban</button>
         <span class="info-tip" tabindex="0"><i class="ic">i</i><span class="bubble">Ordena por cualquier columna haciendo clic en su encabezado. Un segundo clic invierte el orden. En la vista Kanban, arrastra una tarjeta a "Pagada" para marcarla pagada.</span></span>
@@ -1255,7 +1264,17 @@
         <div class="field">
           <label for="set-plazo">Plazo de cobranza desde emisión (días)</label>
           <input type="number" id="set-plazo" min="1" max="180" step="1">
-          <div class="field-hint">Por defecto 30 días: vencimiento = fecha de emisión + este plazo. Se aplica al simular una nueva factura; para tu cartera real, calcula la fecha de vencimiento en tu facturas.json con esta misma regla.</div>
+          <div class="field-hint">Por defecto 30 días: vencimiento = fecha de emisión + este plazo. Se aplica al simular, importar o agregar manualmente una factura, salvo que el cliente tenga un plazo propio abajo.</div>
+        </div>
+        <div class="field">
+          <label>Plazos distintos por cliente (opcional)</label>
+          <div id="plazos-cliente-list" style="display:flex; flex-direction:column; gap:8px;"></div>
+          <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
+            <input type="text" id="plazo-cliente-rut" placeholder="RUT del cliente" style="flex:1; min-width:140px;">
+            <input type="number" id="plazo-cliente-dias" placeholder="Días" min="1" max="365" step="1" style="width:100px;">
+            <button class="btn" type="button" id="plazo-cliente-add">Agregar</button>
+          </div>
+          <div class="field-hint">Si un cliente tiene un plazo propio, se usa en vez del plazo general de arriba para sus próximas facturas (nuevas, importadas o manuales).</div>
         </div>
         <div class="field">
           <label for="set-umbral">Umbral "por vencer" (días antes del vencimiento)</label>
@@ -1357,7 +1376,7 @@
         <strong>nunca marca nada como pagado solo</strong>: tú revisas cada sugerencia y decides si la aceptas o no.
       </p>
       <div class="import-row">
-        <input type="file" id="cartola-file" accept=".csv" />
+        <input type="file" id="cartola-file" accept=".csv,.xlsx,.xls" />
         <button class="btn primary" id="cartola-btn" type="button">Analizar cartola</button>
       </div>
       <p style="font-size:12.5px; color:var(--muted); margin-top:14px;">
@@ -1467,8 +1486,20 @@
     return Math.round((due - today) / 86400000);
   }
 
+  function normRUT(rut){
+    return String(rut || "").replace(/[.\s]/g, "").toUpperCase();
+  }
+
+  function plazoParaCliente(rut){
+    var mapa = (state && state.settings && state.settings.plazosPorCliente) || {};
+    var key = normRUT(rut);
+    var custom = key && mapa[key];
+    if (custom && !isNaN(custom) && Number(custom) > 0) return Number(custom);
+    return (state && state.settings && state.settings.plazoDias) || 30;
+  }
+
   function loadSettings(){
-    var defaults = { plazoDias: 30, umbralDias: 7, metaMensual: 0, metaAnual: 0, metasPorMes: {} };
+    var defaults = { plazoDias: 30, umbralDias: 7, metaMensual: 0, metaAnual: 0, metasPorMes: {}, plazosPorCliente: {} };
     try {
       var raw = localStorage.getItem(SETTINGS_KEY);
       if (raw){
@@ -1663,12 +1694,13 @@
     var neto = Math.round((150000 + Math.random()*2350000) / 1000) * 1000;
     var iva = Math.round(neto * IVA_RATE);
     var emision = overrides && overrides.emision ? overrides.emision : new Date();
-    var plazo = (state && state.settings && state.settings.plazoDias) || 30;
+    var rutInv = (overrides && overrides.rut) || randRUT();
+    var plazo = plazoParaCliente(rutInv);
     var vencimiento = addDays(emision, plazo);
     var inv = {
       folio: nextFolio(),
       razonSocial: RAZONES[Math.floor(Math.random()*RAZONES.length)],
-      rut: randRUT(),
+      rut: rutInv,
       neto: neto,
       iva: iva,
       total: neto + iva,
@@ -1758,13 +1790,12 @@
     saveSettings(); saveDriveUrl(); saveEmailjsConfig(); saveNotesStore(); saveEmailHistory();
   }
 
-  // Ventana de protección: tras cualquier cambio hecho EN ESTE navegador (marcar
-  // pagada, editar, etc.), no se acepta lo que traiga facturas.json por un rato —
-  // ni por el sondeo automático NI al recargar la página. Sin esto, un cambio
-  // podía volver solo a como estaba antes, porque GitHub Pages demora 1-2
-  // minutos en servir lo recién publicado (o, si el token de GitHub falta o
-  // está mal, el archivo remoto directamente nunca cambia). La marca de tiempo
-  // se guarda en localStorage para que sobreviva a un F5 o a cerrar la pestaña.
+  // Ventana de protección: sirve solo para no pisar un formulario de edición
+  // abierto justo cuando llega el sondeo. La protección real contra que una
+  // factura "vuelva a pendiente" es el merge de abajo (docKey / mergeDocs...),
+  // que nunca deja que lo recién llegado de facturas.json borre un pago que
+  // ya quedó marcado en este navegador — sin importar cuánto tiempo pase ni
+  // si la publicación en GitHub demoró, falló o el token estaba mal.
   var PROTECCION_MS = 3 * 60 * 1000;
   var LAST_LOCAL_KEY = "dmz-ultimo-cambio-local";
   function leerUltimoCambioLocal(){
@@ -1774,6 +1805,47 @@
   var ultimoCambioLocal = leerUltimoCambioLocal();
   function dentroDeProteccion(){ return Date.now() - ultimoCambioLocal < PROTECCION_MS; }
 
+  // Identifica un documento (factura, NC o ND) de forma estable entre lo local
+  // y lo remoto, sin importar el orden en que vengan.
+  function docKey(d){ return String(d.folio) + "|" + (d.tipoDoc || (esNC(d) ? "61" : "33")); }
+
+  // Combina lo que viene de facturas.json con lo que ya sabíamos en este
+  // navegador, SIN dejar que un pago o rechazo ya registrado aquí retroceda
+  // solo porque el archivo remoto todavía no refleja ese cambio (publicación
+  // demorada, fallida, o token de GitHub mal configurado). Para todo lo demás
+  // (razón social, montos, nuevas facturas de un colega, etc.) manda lo que
+  // trae facturas.json, que es la fuente de verdad del equipo.
+  function mergeDocsPreservingLocalProgress(remoteDocs, localDocs){
+    if (!Array.isArray(localDocs) || !localDocs.length) return remoteDocs;
+    var localByKey = {};
+    localDocs.forEach(function(d){ localByKey[docKey(d)] = d; });
+    var vistos = {};
+    var merged = remoteDocs.map(function(rd){
+      var key = docKey(rd);
+      vistos[key] = true;
+      var local = localByKey[key];
+      if (!local || esNC(rd)) return rd;
+      var out = Object.assign({}, rd);
+      var localPagado = Number(local.montoPagado) || 0;
+      var remotoPagado = Number(rd.montoPagado) || 0;
+      if (local.pagada && !rd.pagada){
+        out.pagada = true;
+        out.montoPagado = Math.max(localPagado, remotoPagado, Number(rd.total) || 0);
+      } else if (localPagado > remotoPagado){
+        out.montoPagado = localPagado;
+        out.pagada = local.pagada;
+      }
+      if (local.rechazada && !rd.rechazada) out.rechazada = true;
+      return out;
+    });
+    // Documentos que solo existen en este navegador todavía (agregados o
+    // importados aquí, pero no publicados aún en GitHub).
+    localDocs.forEach(function(d){
+      if (!vistos[docKey(d)]) merged.push(d);
+    });
+    return merged;
+  }
+
   async function loadInvoices(){
     try {
       var res = await fetch("facturas.json", { cache: "no-store" });
@@ -1782,21 +1854,11 @@
         // v2: { documentos: [...], config: {...} } — v1 (compatibilidad): array plano.
         var docs = Array.isArray(data) ? data : data.documentos;
         if (Array.isArray(docs) && docs.length){
-          // Si este navegador hizo un cambio hace poco, no lo pises con lo que
-          // acaba de llegar del servidor — puede ser la versión de antes de tu
-          // cambio, todavía no propagada. Usa lo que ya tenías guardado aquí.
-          if (dentroDeProteccion()){
-            var reciente = fromLocalStorage();
-            if (reciente){
-              bumpFolioSeq(reciente);
-              state.dataSource = "facturas.json";
-              return reciente;
-            }
-          }
           if (!Array.isArray(data)) aplicarSharedConfig(data.config);
-          bumpFolioSeq(docs);
+          var docsFinal = mergeDocsPreservingLocalProgress(docs, fromLocalStorage());
+          bumpFolioSeq(docsFinal);
           state.dataSource = "facturas.json";
-          return docs;
+          return docsFinal;
         }
       }
     } catch(e) { /* no facturas.json next to this page (e.g. previewing the artifact) — fall through */ }
@@ -1818,10 +1880,8 @@
   function iniciarAutoRefresh(){
     setInterval(async function(){
       if (state.dataSource !== "facturas.json") return;
-      // No pisar mientras hay un formulario de edición abierto, ni justo
-      // después de un cambio hecho aquí mismo.
+      // No pisar mientras hay un formulario de edición abierto.
       if (state.editingFolio || !document.getElementById("new-invoice-form").hidden) return;
-      if (dentroDeProteccion()) return;
       try {
         var res = await fetch("facturas.json", { cache: "no-store" });
         if (!res.ok) return;
@@ -1829,8 +1889,9 @@
         var docs = Array.isArray(data) ? data : data.documentos;
         if (!Array.isArray(docs)) return;
         if (!Array.isArray(data)) aplicarSharedConfig(data.config);
-        setDocs(docs);
-        bumpFolioSeq(docs);
+        var docsFinal = mergeDocsPreservingLocalProgress(docs, allDocs());
+        setDocs(docsFinal);
+        bumpFolioSeq(docsFinal);
         saveData(true);
         renderAll();
       } catch(e){ /* red intermitente — se reintenta en el próximo ciclo */ }
@@ -1867,6 +1928,7 @@
     notesOpenRut: null,
     filter: "todas",
     query: "",
+    queryCobranza: "",
     view: "resumen",
     dataSource: "demo",
     yearFilter: "todos",
@@ -2216,8 +2278,51 @@
       f.razonSocial.toLowerCase().includes(q) ||
       f.rut.toLowerCase().includes(q);
   }
+  function matchesQueryCobranza(f){
+    if (!state.queryCobranza) return true;
+    var q = state.queryCobranza.toLowerCase();
+    return String(f.folio).includes(q) ||
+      f.razonSocial.toLowerCase().includes(q) ||
+      f.rut.toLowerCase().includes(q);
+  }
+
+  // --- Deshacer (undo) ------------------------------------------------------
+  // Guarda una "foto" de las facturas y notas de crédito antes de cada cambio
+  // importante, para poder revertir el último cambio con el botón "Deshacer".
+  var UNDO_MAX = 15;
+  var undoStack = [];
+  function snapshotForUndo(){
+    return JSON.stringify({ invoices: state.invoices, notasCredito: state.notasCredito });
+  }
+  function pushUndo(){
+    try {
+      undoStack.push(snapshotForUndo());
+      if (undoStack.length > UNDO_MAX) undoStack.shift();
+      var btn = document.getElementById("undo-btn");
+      if (btn) btn.disabled = false;
+    } catch(e) { /* si falla, simplemente no se podrá deshacer este cambio */ }
+  }
+  function undoLast(){
+    if (!undoStack.length) return;
+    var raw = undoStack.pop();
+    try {
+      var data = JSON.parse(raw);
+      state.invoices = data.invoices || [];
+      state.notasCredito = data.notasCredito || [];
+      state.editingFolio = null;
+      saveData();
+      renderAll();
+      autoPublicarCambioCompartido();
+      showToast("Se deshizo el último cambio.");
+    } catch(e){
+      showToast("No se pudo deshacer el cambio.");
+    }
+    var btn = document.getElementById("undo-btn");
+    if (btn) btn.disabled = !undoStack.length;
+  }
 
   function markPaid(f){
+    pushUndo();
     f.pagada = true;
     f.montoPagado = f.total;
     saveData();
@@ -2232,6 +2337,7 @@
       showToast("Ingresa un monto válido.");
       return;
     }
+    pushUndo();
     if (monto > f.total) monto = f.total;
     f.montoPagado = monto;
     f.pagada = monto >= f.total;
@@ -2244,6 +2350,7 @@
   }
 
   function toggleRechazada(f){
+    pushUndo();
     f.rechazada = !f.rechazada;
     saveData();
     renderAll();
@@ -2254,6 +2361,7 @@
   }
 
   function deleteInvoice(f){
+    pushUndo();
     state.invoices = state.invoices.filter(function(x){ return x !== f; });
     saveData();
     renderAll();
@@ -2276,22 +2384,27 @@
     }
     var iva = data.iva !== "" && data.iva !== undefined && data.iva !== null && isFinite(Number(data.iva))
       ? Math.round(Number(data.iva)) : Math.round(neto * 0.19);
-    var total = neto + iva;
+    var exento = data.exento !== "" && data.exento !== undefined && data.exento !== null && isFinite(Number(data.exento))
+      ? Math.round(Number(data.exento)) : 0;
+    var total = neto + iva + exento;
     var vencimiento = data.vencimiento
       ? data.vencimiento
-      : addDays(data.emision, state.settings.plazoDias).toISOString().slice(0,10);
+      : addDays(data.emision, plazoParaCliente(rut)).toISOString().slice(0,10);
     var factura = {
       folio: folio,
       razonSocial: razon,
       rut: rut,
       neto: neto,
       iva: iva,
+      exento: exento,
       total: total,
       emision: data.emision,
       vencimiento: vencimiento,
       pagada: false,
-      montoPagado: 0
+      montoPagado: 0,
+      origen: "manual"
     };
+    pushUndo();
     state.invoices.unshift(factura);
     if (folio > folioSeq) folioSeq = folio;
     saveData();
@@ -2306,15 +2419,19 @@
     var rut = (data.rut || "").trim();
     var neto = Number(data.neto);
     var iva = Number(data.iva);
-    if (!razon || !rut || !isFinite(neto) || neto < 0 || !isFinite(iva) || iva < 0 || !data.vencimiento){
+    var exento = data.exento === undefined || data.exento === null ? (f.exento || 0) : (Number(data.exento) || 0);
+    if (!razon || !rut || !isFinite(neto) || neto < 0 || !isFinite(iva) || iva < 0 || !isFinite(exento) || exento < 0 || !data.vencimiento){
       showToast("Revisa los datos: razón social, RUT, montos y vencimiento no pueden quedar vacíos o negativos.");
       return false;
     }
+    pushUndo();
     f.razonSocial = razon;
     f.rut = rut;
     f.neto = neto;
     f.iva = iva;
-    f.total = neto + iva;
+    f.exento = exento;
+    f.total = neto + iva + exento;
+    if (data.emision) f.emision = data.emision;
     f.vencimiento = data.vencimiento;
     f.responsable = (data.responsable || "").trim();
     f.concepto = (data.concepto || "").trim();
@@ -2337,6 +2454,7 @@
     total: { type: "number", get: function(f){ return f.total; } },
     _pagado: { type: "number", get: function(f){ return montoPagadoDe(f); } },
     _saldo: { type: "number", get: function(f){ return saldoDe(f); } },
+    emision: { type: "date", get: function(f){ return f.emision; } },
     vencimiento: { type: "date", get: function(f){ return f.vencimiento; } },
     _estado: { type: "text", get: function(f){ return ESTADO_LABEL[estadoDe(f)]; } },
     _responsable: { type: "text", get: function(f){ return f.responsable || ""; } },
@@ -2377,7 +2495,7 @@
         '<td class="num tabular">' + fmtCLP(tT) + '</td>' +
         '<td class="num tabular">' + fmtCLP(tP) + '</td>' +
         '<td class="num tabular">' + fmtCLP(tS) + '</td>' +
-        '<td></td><td></td><td></td><td></td><td></td></tr>';
+        '<td></td><td></td><td></td><td></td><td></td><td></td></tr>';
     } else {
       totalsFoot.innerHTML = "";
     }
@@ -2386,7 +2504,7 @@
       var tr = document.createElement("tr");
       tr.className = "empty-row";
       var td = document.createElement("td");
-      td.colSpan = 13;
+      td.colSpan = 14;
       td.textContent = "No hay facturas que coincidan con el filtro.";
       tr.appendChild(td);
       tbody.appendChild(tr);
@@ -2403,10 +2521,10 @@
       if (state.editingFolio === f.folio){
         tr.innerHTML =
           '<td class="tabular">' + f.folio + '</td>' +
-          '<td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>';
+          '<td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>';
         var razonTd = tr.children[1], rutTd = tr.children[2], netoTd = tr.children[3],
-            ivaTd = tr.children[4], totalTd = tr.children[5], vencTd = tr.children[8],
-            responsableTd = tr.children[10], conceptoTd = tr.children[11], editActionTd = tr.children[12];
+            ivaTd = tr.children[4], totalTd = tr.children[5], emisionTd = tr.children[8], vencTd = tr.children[9],
+            responsableTd = tr.children[11], conceptoTd = tr.children[12], editActionTd = tr.children[13];
 
         var conceptoInput = document.createElement("input");
         conceptoInput.type = "text"; conceptoInput.className = "contact-input"; conceptoInput.style.width = "220px";
@@ -2436,13 +2554,27 @@
         ivaInput.type = "number"; ivaInput.className = "pago-input"; ivaInput.min = "0"; ivaInput.value = f.iva;
         ivaTd.appendChild(ivaInput);
 
-        totalTd.innerHTML = '<strong class="tabular">' + fmtCLP(f.neto + f.iva) + '</strong>';
+        totalTd.innerHTML = '<strong class="tabular">' + fmtCLP(f.neto + f.iva + (f.exento || 0)) + '</strong>';
+        var exentoInput = document.createElement("input");
+        exentoInput.type = "number"; exentoInput.className = "pago-input"; exentoInput.min = "0";
+        exentoInput.style.width = "90px"; exentoInput.style.marginTop = "4px";
+        exentoInput.placeholder = "Exento";
+        exentoInput.title = "Monto exento de IVA";
+        exentoInput.value = f.exento || "";
+        totalTd.appendChild(document.createElement("br"));
+        totalTd.appendChild(exentoInput);
         function recalcTotalPreview(){
-          var n = Number(netoInput.value) || 0, i = Number(ivaInput.value) || 0;
-          totalTd.querySelector("strong").textContent = fmtCLP(n + i);
+          var n = Number(netoInput.value) || 0, i = Number(ivaInput.value) || 0, x = Number(exentoInput.value) || 0;
+          totalTd.querySelector("strong").textContent = fmtCLP(n + i + x);
         }
         netoInput.addEventListener("input", recalcTotalPreview);
         ivaInput.addEventListener("input", recalcTotalPreview);
+        exentoInput.addEventListener("input", recalcTotalPreview);
+
+        var emisionInput = document.createElement("input");
+        emisionInput.type = "date"; emisionInput.className = "contact-input"; emisionInput.style.width = "140px";
+        emisionInput.value = String(f.emision).slice(0,10);
+        emisionTd.appendChild(emisionInput);
 
         var vencInput = document.createElement("input");
         vencInput.type = "date"; vencInput.className = "contact-input"; vencInput.style.width = "140px";
@@ -2456,8 +2588,8 @@
         saveEditBtn.addEventListener("click", function(){
           saveInvoiceEdit(f, {
             razon: razonInput.value, rut: rutInput.value,
-            neto: netoInput.value, iva: ivaInput.value,
-            vencimiento: vencInput.value, responsable: respInput.value,
+            neto: netoInput.value, iva: ivaInput.value, exento: exentoInput.value,
+            emision: emisionInput.value, vencimiento: vencInput.value, responsable: respInput.value,
             concepto: conceptoInput.value
           });
         });
@@ -2482,19 +2614,22 @@
         '<td class="tabular">' + f.rut + '</td>' +
         '<td class="num tabular">' + fmtCLP(f.neto) + '</td>' +
         '<td class="num tabular">' + fmtCLP(f.iva) + '</td>' +
-        '<td class="num tabular"><strong>' + fmtCLP(f.total) + '</strong></td>' +
+        '<td class="num tabular"><strong>' + fmtCLP(f.total) + '</strong>' +
+          (f.exento > 0 ? '<div style="font-size:10.5px; color:var(--muted);">incl. ' + fmtCLP(f.exento) + ' exento</div>' : '') + '</td>' +
         '<td class="num tabular">' + fmtCLP(pagado) + '</td>' +
         '<td class="num tabular">' + fmtCLP(saldo) + '</td>' +
+        '<td>' + fmtDate(new Date(f.emision)) + '</td>' +
         '<td>' + fmtDate(new Date(f.vencimiento)) + '</td>' +
         '<td><span class="badge ' + estado + '"><span class="dot"></span>' + ESTADO_LABEL[estado] +
           '</span>' + (parcial ? ' <span class="badge parcial"><span class="dot"></span>Parcial</span>' : '') +
           (f.tipoDoc === "56" ? ' <span class="badge tipo-nd"><span class="dot"></span>ND</span>' : '') +
-          (!f.anulada && ncMontoDe(f) > 0 ? ' <span class="badge tipo-nd" title="Nota de crédito parcial: rebaja el saldo"><span class="dot"></span>NC −' + fmtCLP(ncMontoDe(f)) + '</span>' : '') + '</td>' +
+          (!f.anulada && ncMontoDe(f) > 0 ? ' <span class="badge tipo-nd" title="Nota de crédito parcial: rebaja el saldo"><span class="dot"></span>NC −' + fmtCLP(ncMontoDe(f)) + '</span>' : '') +
+          (f.origen === "manual" ? ' <span class="badge tipo-nd" title="Agregada manualmente — se puede editar con el botón Editar"><span class="dot"></span>Manual</span>' : '') + '</td>' +
         '<td></td>' +
         '<td></td>' +
         '<td></td>';
 
-      var responsableTd = tr.children[10];
+      var responsableTd = tr.children[11];
       var respWrap = document.createElement("div");
       respWrap.className = "contact-cell";
       var respInput = document.createElement("input");
@@ -2508,6 +2643,7 @@
       respSaveBtn.type = "button";
       respSaveBtn.textContent = "Guardar";
       function saveResponsable(){
+        pushUndo();
         f.responsable = respInput.value.trim();
         saveData();
         autoPublicarCambioCompartido();
@@ -2519,7 +2655,7 @@
       respWrap.appendChild(respSaveBtn);
       responsableTd.appendChild(respWrap);
 
-      var conceptoTd = tr.children[11];
+      var conceptoTd = tr.children[12];
       var concWrap = document.createElement("div");
       concWrap.className = "contact-cell";
       var concInput = document.createElement("input");
@@ -2533,6 +2669,7 @@
       concSaveBtn.type = "button";
       concSaveBtn.textContent = "Guardar";
       function saveConcepto(){
+        pushUndo();
         f.concepto = concInput.value.trim();
         saveData();
         autoPublicarCambioCompartido();
@@ -2637,27 +2774,41 @@
   }
 
   function renderCobranza(){
-    var pendientes = visibleInvoices().filter(function(f){ return saldoDe(f) > 0; });
-    var buckets = [
-      { key: "b0", label: "Al día", min: 0, max: Infinity, count: 0, amt: 0, cls: "al-dia" },
-      { key: "b1", label: "Por vencer (≤ " + state.settings.umbralDias + "d)", min: -Infinity, max: 0, count: 0, amt: 0, cls: "por-vencer" },
-      { key: "b2", label: "Vencido 1-15 días", min: -15, max: -1, count: 0, amt: 0, cls: "vencido" },
-      { key: "b3", label: "Vencido +15 días", min: -Infinity, max: -16, count: 0, amt: 0, cls: "vencido" }
-    ];
+    var pendientes = visibleInvoices().filter(function(f){ return saldoDe(f) > 0; }).filter(matchesQueryCobranza);
+    var hayPlazosPersonalizados = !!(state.settings.plazosPorCliente && Object.keys(state.settings.plazosPorCliente).length);
+    var buckets;
+    if (hayPlazosPersonalizados){
+      buckets = [
+        { key: "b0", label: "Al día", min: 0, max: Infinity, count: 0, amt: 0, cls: "al-dia" },
+        { key: "b1", label: "Por vencer (≤ " + state.settings.umbralDias + "d)", min: -Infinity, max: 0, count: 0, amt: 0, cls: "por-vencer" },
+        { key: "b2", label: "Vencido 1-15 días", min: -15, max: -1, count: 0, amt: 0, cls: "vencido" },
+        { key: "b3", label: "Vencido +15 días", min: -Infinity, max: -16, count: 0, amt: 0, cls: "vencido" }
+      ];
+    } else {
+      buckets = [
+        { key: "b0", label: "Al día", min: 0, max: Infinity, count: 0, amt: 0, cls: "al-dia" },
+        { key: "b1", label: "Por vencer (≤ " + state.settings.umbralDias + "d)", min: -Infinity, max: 0, count: 0, amt: 0, cls: "por-vencer" },
+        { key: "b2", label: "Vencido", min: -Infinity, max: -1, count: 0, amt: 0, cls: "vencido" }
+      ];
+    }
     pendientes.forEach(function(f){
       var d = daysUntil(f.vencimiento);
       var estado = estadoDe(f);
       var saldo = saldoDe(f);
       if (estado === "al-dia"){ buckets[0].count++; buckets[0].amt += saldo; }
       else if (estado === "por-vencer"){ buckets[1].count++; buckets[1].amt += saldo; }
-      else if (d >= -15){ buckets[2].count++; buckets[2].amt += saldo; }
-      else { buckets[3].count++; buckets[3].amt += saldo; }
+      else if (hayPlazosPersonalizados){
+        if (d >= -15){ buckets[2].count++; buckets[2].amt += saldo; }
+        else { buckets[3].count++; buckets[3].amt += saldo; }
+      } else {
+        buckets[2].count++; buckets[2].amt += saldo;
+      }
     });
 
     var totalAmt = buckets.reduce(function(s,b){ return s + b.amt; }, 0);
     var totalN = buckets.reduce(function(s,b){ return s + b.count; }, 0);
     document.getElementById("aging-total").innerHTML =
-      'Total por cobrar en estos 4 tramos: <strong>' + fmtCLP(totalAmt) + '</strong> · ' +
+      'Total por cobrar en estos ' + buckets.length + ' tramos: <strong>' + fmtCLP(totalAmt) + '</strong> · ' +
       totalN + (totalN === 1 ? " factura" : " facturas");
 
     var grid = document.getElementById("aging-grid");
@@ -2744,7 +2895,7 @@
       });
     }
 
-    var nUrgentes = buckets[1].count + buckets[2].count + buckets[3].count;
+    var nUrgentes = buckets.slice(1).reduce(function(s,b){ return s + b.count; }, 0);
     var navBadge = document.getElementById("nav-badge-cobranza");
     if (nUrgentes > 0){ navBadge.textContent = nUrgentes; navBadge.hidden = false; }
     else { navBadge.hidden = true; }
@@ -3611,13 +3762,14 @@
       if (!total) continue;
 
       var emisionDate = new Date(fechaISO + "T12:00:00");
-      var vencimientoDate = addDays(emisionDate, state.settings.plazoDias);
+      var rutRCV = idx.rut >= 0 ? String(cells[idx.rut] || "").trim() : "";
+      var vencimientoDate = addDays(emisionDate, plazoParaCliente(rutRCV));
 
       candidatas.push({
         folio: folio,
         razonSocial: idx.razon >= 0 ? String(cells[idx.razon] || "").trim() : "",
-        rut: idx.rut >= 0 ? String(cells[idx.rut] || "").trim() : "",
-        neto: neto, iva: iva, total: total,
+        rut: rutRCV,
+        neto: neto, iva: iva, exento: exento, total: total,
         emision: emisionDate.toISOString(),
         vencimiento: vencimientoDate.toISOString(),
         pagada: false,
@@ -3695,6 +3847,7 @@
       return;
     }
 
+    pushUndo();
     state.invoices = state.invoices.concat(result.nuevas);
     state.notasCredito = (state.notasCredito || []).concat(result.nuevasNC);
     var efectoNC = aplicarNC(result.nuevasNC);
@@ -4187,8 +4340,19 @@
     renderTable();
   });
 
+  document.getElementById("search-cobranza").addEventListener("input", function(e){
+    state.queryCobranza = e.target.value;
+    renderCobranza();
+  });
+
   // --- Buscador global (folio / razón social / RUT) -----------------------
   function jumpToInvoice(f){
+    if (state.view === "cobranza"){
+      state.queryCobranza = String(f.folio);
+      document.getElementById("search-cobranza").value = String(f.folio);
+      renderCobranza();
+      return;
+    }
     state.query = String(f.folio);
     document.getElementById("search").value = String(f.folio);
     state.filter = "todas";
@@ -4199,6 +4363,12 @@
     renderTable();
   }
   function jumpToCliente(rut){
+    if (state.view === "cobranza"){
+      state.queryCobranza = rut;
+      document.getElementById("search-cobranza").value = rut;
+      renderCobranza();
+      return;
+    }
     state.query = rut;
     document.getElementById("search").value = rut;
     state.filter = "todas";
@@ -4288,6 +4458,10 @@
   }
   var themeMode = loadTheme();
   applyTheme(themeMode);
+  document.getElementById("undo-btn").addEventListener("click", function(){
+    undoLast();
+  });
+
   document.getElementById("theme-btn").addEventListener("click", function(){
     themeMode = themeMode === "auto" ? "dark" : (themeMode === "dark" ? "light" : "auto");
     try { localStorage.setItem(THEME_KEY, themeMode); } catch(e){}
@@ -4392,6 +4566,7 @@
       rut: document.getElementById("ni-rut").value,
       neto: document.getElementById("ni-neto").value,
       iva: document.getElementById("ni-iva").value,
+      exento: document.getElementById("ni-exento").value,
       emision: document.getElementById("ni-emision").value,
       vencimiento: document.getElementById("ni-vencimiento").value
     });
@@ -4430,11 +4605,26 @@
     var input = document.getElementById("cartola-file");
     var file = input.files && input.files[0];
     var log = document.getElementById("cartola-log");
-    if (!file){ log.hidden = false; log.classList.add("error"); log.textContent = "Primero selecciona un archivo CSV."; return; }
+    if (!file){ log.hidden = false; log.classList.add("error"); log.textContent = "Primero selecciona un archivo."; return; }
+    var esExcel = /\.xlsx?$/i.test(file.name);
     var reader = new FileReader();
-    reader.onload = function(e){ runCartola(String(e.target.result || "")); };
     reader.onerror = function(){ log.hidden = false; log.classList.add("error"); log.textContent = "No se pudo leer el archivo."; };
-    reader.readAsText(file, "utf-8");
+    if (esExcel){
+      reader.onload = function(e){
+        try {
+          var wb = XLSX.read(new Uint8Array(e.target.result), { type: "array" });
+          var csv = XLSX.utils.sheet_to_csv(wb.Sheets[wb.SheetNames[0]]);
+          runCartola(csv);
+        } catch(err){
+          log.hidden = false; log.classList.add("error");
+          log.textContent = "No se pudo leer el archivo Excel: " + err.message;
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    } else {
+      reader.onload = function(e){ runCartola(String(e.target.result || "")); };
+      reader.readAsText(file, "utf-8");
+    }
   });
 
   document.getElementById("cartola-paste-btn").addEventListener("click", function(){
@@ -4480,8 +4670,60 @@
         '</div>';
     }
     grid.innerHTML = html;
+    pintarPlazosCliente();
   }
   pintarCamposMetas();
+
+  function pintarPlazosCliente(){
+    var list = document.getElementById("plazos-cliente-list");
+    if (!list) return;
+    var mapa = state.settings.plazosPorCliente || {};
+    var ruts = Object.keys(mapa);
+    if (!ruts.length){
+      list.innerHTML = '<div class="field-hint" style="margin:0;">Sin plazos personalizados aún.</div>';
+      return;
+    }
+    var html = "";
+    ruts.forEach(function(rut){
+      html += '<div style="display:flex; align-items:center; gap:8px;">' +
+        '<span style="flex:1; font-size:13px;">' + rut + '</span>' +
+        '<span style="font-size:13px; color:var(--text-secondary);">' + mapa[rut] + ' días</span>' +
+        '<button class="btn" type="button" data-rut-quitar="' + rut + '" style="padding:4px 10px;">Quitar</button>' +
+        '</div>';
+    });
+    list.innerHTML = html;
+    list.querySelectorAll("[data-rut-quitar]").forEach(function(btn){
+      btn.addEventListener("click", function(){
+        var rut = btn.getAttribute("data-rut-quitar");
+        delete state.settings.plazosPorCliente[rut];
+        saveSettings();
+        pintarPlazosCliente();
+        autoPublicarCambioCompartido();
+      });
+    });
+  }
+
+  var plazoClienteAddBtn = document.getElementById("plazo-cliente-add");
+  if (plazoClienteAddBtn){
+    plazoClienteAddBtn.addEventListener("click", function(){
+      var rutInput = document.getElementById("plazo-cliente-rut");
+      var diasInput = document.getElementById("plazo-cliente-dias");
+      var rut = normRUT(rutInput.value);
+      var dias = parseInt(diasInput.value, 10);
+      if (!rut || isNaN(dias) || dias <= 0){
+        showToast("Ingresa un RUT y una cantidad de días válida.");
+        return;
+      }
+      if (!state.settings.plazosPorCliente) state.settings.plazosPorCliente = {};
+      state.settings.plazosPorCliente[rut] = dias;
+      saveSettings();
+      pintarPlazosCliente();
+      autoPublicarCambioCompartido();
+      rutInput.value = "";
+      diasInput.value = "";
+      showToast("Plazo guardado para " + rut + ".");
+    });
+  }
 
   // "Meta mensual efectiva" del mes m (1-12): su propia meta si la tiene, si no la
   // meta por defecto. Se usa tanto para el semáforo mensual como para sumar el
