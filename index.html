@@ -790,6 +790,22 @@
   }
   .import-log.error{ background: var(--critical-soft); color: var(--critical); }
   .field{ display:flex; flex-direction:column; gap:6px; }
+  .meses-grid{ display:grid; grid-template-columns: repeat(4, 1fr); gap:10px; }
+  @media (max-width: 640px){ .meses-grid{ grid-template-columns: repeat(2, 1fr); } }
+  .mes-field{ display:flex; flex-direction:column; gap:4px; }
+  .mes-field label{ font-size:11.5px; color:var(--text-secondary); font-weight:600; }
+  .mes-field input{ width:100%; }
+  .goal-anual-big{
+    background: linear-gradient(135deg, var(--accent-soft), var(--surface));
+    border: 1.5px solid var(--accent);
+    border-radius: 16px; padding: 22px 24px; margin-bottom: 20px;
+    display:flex; align-items:center; gap:20px; flex-wrap:wrap;
+  }
+  .goal-anual-big .ring{ flex-shrink:0; }
+  .goal-anual-big .txt-big{ display:flex; flex-direction:column; gap:4px; }
+  .goal-anual-big .pct-big{ font-size:38px; font-weight:800; line-height:1; }
+  .goal-anual-big .lbl-big{ font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; color: var(--text-secondary); }
+  .goal-anual-big .sub-big{ font-size:13.5px; color: var(--text-secondary); }
   .field label{ font-size: 12.5px; font-weight: 700; color: var(--text-secondary); }
   .field input{
     border: 1px solid var(--border);
@@ -952,6 +968,7 @@
     <div id="drive-link-wrap" style="margin:14px 0 0;" hidden>
       <a id="drive-link-btn" class="btn ghost small" href="#" target="_blank" rel="noopener">📁 Abrir carpeta de respaldos en Drive</a>
     </div>
+    <div id="goal-anual-wrap" hidden></div>
     <div id="goal-semaforo-wrap" hidden></div>
 
     <div class="row-2col">
@@ -1080,6 +1097,21 @@
         <span id="row-count">0 facturas</span>
         <span id="data-source-note">Datos: ejemplo</span>
       </footer>
+    </section>
+    <section class="panel" style="margin-top:16px;">
+      <div class="panel-head">
+        <h2>Notas de crédito</h2>
+        <span class="muted" id="nc-summary"></span>
+      </div>
+      <div class="table-scroll">
+        <table id="table-nc">
+          <thead><tr>
+            <th>Folio NC</th><th>Fecha</th><th>Razón social</th><th>RUT</th>
+            <th>Factura referenciada</th><th class="num">Monto</th><th>Efecto</th>
+          </tr></thead>
+          <tbody id="nc-body"></tbody>
+        </table>
+      </div>
     </section>
   </section>
 
@@ -1221,9 +1253,20 @@
           <div class="field-hint">Define cuándo una factura pasa a amarillo en el semáforo.</div>
         </div>
         <div class="field">
-          <label for="set-meta">Meta de facturación mensual (CLP)</label>
+          <label for="set-meta">Meta mensual por defecto (CLP)</label>
           <input type="number" id="set-meta" min="0" step="1000">
-          <div class="field-hint">Se usa para el semáforo de cumplimiento de meta que aparece en Resumen. Déjalo en 0 para ocultarlo.</div>
+          <div class="field-hint">Se usa para cualquier mes que no tenga su propia meta abajo. Déjalo en 0 para ocultar el semáforo mensual cuando no hay meta específica.</div>
+        </div>
+        <div class="field">
+          <label>Meta por mes (opcional — sobrescribe la meta por defecto)</label>
+          <div class="meses-grid" id="metas-mes-grid"></div>
+          <div class="field-hint">Deja un mes en blanco para que use la meta por defecto de arriba. Útil para temporadas bajas o altas.</div>
+        </div>
+        <div class="field">
+          <label for="set-meta-anual">Meta de venta total anual (CLP)</label>
+          <input type="number" id="set-meta-anual" min="0" step="1000">
+          <div class="field-hint">Semáforo grande aparte, siempre del año en curso completo, sin importar los filtros. Déjalo en 0 para ocultarlo.</div>
+        </div>
         </div>
         <div>
           <button class="btn primary" type="submit">Guardar parámetros</button>
@@ -1276,9 +1319,11 @@
       <div class="panel-head"><h2>Importar Libro de Ventas (RCV)</h2></div>
       <p style="font-size:13px; color:var(--text-secondary); max-width:620px; line-height:1.6;">
         Sube aquí el archivo CSV del Libro de Ventas (RCV) que descargas del SII. El dashboard va a leer las
-        facturas nuevas, calcular su vencimiento (emisión + plazo de cobranza configurado arriba), excluir las
-        que fueron anuladas por una nota de crédito en el mismo archivo, y omitir las que ya existían (por folio)
-        para no duplicar.
+        facturas nuevas, calcular su vencimiento (emisión + plazo de cobranza configurado arriba), registrar
+        las notas de crédito como documentos propios (se restan de lo facturado en el mes en que se emitió
+        la NC, no en el mes de la factura original — igual que en el Libro de Ventas), marcar como "Anulada
+        (NC)" las facturas que quedan totalmente cubiertas y rebajar el saldo de las que solo quedan cubiertas
+        en parte, y omitir las que ya existían (por folio) para no duplicar.
       </p>
       <div class="import-row">
         <input type="file" id="import-file" accept=".csv" />
@@ -1399,6 +1444,9 @@
     return "$" + Math.round(n).toLocaleString("es-CL");
   }
 
+  function esc(s){
+    return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  }
   function fmtDate(d){
     return d.toLocaleDateString("es-CL", { day: "2-digit", month: "2-digit", year: "numeric" });
   }
@@ -1410,7 +1458,7 @@
   }
 
   function loadSettings(){
-    var defaults = { plazoDias: 30, umbralDias: 7, metaMensual: 0 };
+    var defaults = { plazoDias: 30, umbralDias: 7, metaMensual: 0, metaAnual: 0, metasPorMes: {} };
     try {
       var raw = localStorage.getItem(SETTINGS_KEY);
       if (raw){
@@ -1548,15 +1596,35 @@
     return m;
   }
   // What's still owed on this invoice.
+  // Notas de Crédito (tipo 61) se guardan como documentos propios en
+  // state.notasCredito. Igual que en el Libro de Ventas, la factura suma en su
+  // mes de emisión y la NC resta su monto en el mes en que se emitió la NC.
+  function esNC(d){ return String(d.tipoDoc) === "61"; }
+  function ncDe(f){
+    return (state.notasCredito || []).filter(function(nc){ return String(nc.folioRef) === String(f.folio); });
+  }
+  function ncMontoDe(f){
+    return ncDe(f).reduce(function(s,nc){ return s + (Number(nc.total) || 0); }, 0);
+  }
+  function enFiltroPeriodo(d){
+    var dt = new Date(d.emision);
+    if (state.yearFilter !== "todos" && String(dt.getFullYear()) !== state.yearFilter) return false;
+    if (state.monthFilter !== "todos" && String(dt.getMonth() + 1).padStart(2,"0") !== state.monthFilter) return false;
+    return true;
+  }
+  function visibleNCs(){ return (state.notasCredito || []).filter(enFiltroPeriodo); }
+  function sumaNC(list){ return list.reduce(function(s,nc){ return s + (Number(nc.total) || 0); }, 0); }
+
   function saldoDe(f){
     if (f.anulada) return 0;
-    return Math.max(0, f.total - montoPagadoDe(f));
+    return Math.max(0, f.total - montoPagadoDe(f) - ncMontoDe(f));
   }
-  // "Facturado" real: una factura anulada por Nota de Crédito no debe sumar
-  // a los totales de facturación (KPIs, gráficos, reportes), aunque su
-  // monto original se siga mostrando en su propia fila para trazabilidad.
+  // "Facturado" bruto de la factura en su mes. Las NC se restan aparte, en su
+  // propio mes. Excepción: facturas anuladas antes de que existiera el registro
+  // de NC (no hay NC guardada que las reste) siguen contando 0.
   function facturadoDe(f){
-    return f.anulada ? 0 : f.total;
+    if (f.anulada && ncMontoDe(f) === 0) return 0;
+    return f.total;
   }
   function esParcial(f){
     var pagado = montoPagadoDe(f);
@@ -1641,7 +1709,7 @@
   }
 
   function bumpFolioSeq(invoices){
-    folioSeq = invoices.reduce(function(m,f){ return Math.max(m, f.folio||0); }, 1000);
+    folioSeq = invoices.reduce(function(m,f){ return esNC(f) ? m : Math.max(m, Number(f.folio)||0); }, 1000);
   }
 
   /**
@@ -1680,14 +1748,22 @@
     return seedData();
   }
 
+  // facturas.json / LocalStorage keep one array; NCs (tipo 61) are split out on load.
+  function setDocs(docs){
+    state.invoices = docs.filter(function(d){ return !esNC(d); });
+    state.notasCredito = docs.filter(esNC);
+  }
+  function allDocs(){ return state.invoices.concat(state.notasCredito || []); }
+
   function saveData(){
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state.invoices)); }
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(allDocs())); }
     catch(e) { /* storage unavailable (private mode, quota) — data stays in-memory */ }
   }
 
   var state = {
     settings: loadSettings(),
     invoices: [],
+    notasCredito: [],
     contacts: loadContacts(),
     githubConfig: loadGithubConfig(),
     driveUrl: loadDriveUrl(),
@@ -1770,7 +1846,7 @@
 
   function renderYearFilter(){
     var sel = document.getElementById("year-filter");
-    var years = Array.from(new Set(state.invoices.map(function(f){
+    var years = Array.from(new Set(allDocs().map(function(f){
       return String(new Date(f.emision).getFullYear());
     }))).sort(function(a,b){ return b - a; });
     var current = state.yearFilter;
@@ -1783,7 +1859,7 @@
 
   function renderMonthFilter(){
     var sel = document.getElementById("month-filter");
-    var scope = state.yearFilter === "todos" ? state.invoices : state.invoices.filter(function(f){
+    var scope = state.yearFilter === "todos" ? allDocs() : allDocs().filter(function(f){
       return String(new Date(f.emision).getFullYear()) === state.yearFilter;
     });
     var months = Array.from(new Set(scope.map(function(f){
@@ -1827,6 +1903,7 @@
         if (estadoDe(f) === "vencido") totalVencido += saldo;
       }
     });
+    totalFacturado -= sumaNC(visibleNCs());
     document.getElementById("kpi-facturado").textContent = fmtCLP(totalFacturado);
     document.getElementById("kpi-facturado-sub").textContent = nEmitidas;
     document.getElementById("kpi-pagado").textContent = fmtCLP(totalPagado);
@@ -1859,8 +1936,10 @@
     var months = lastMonths(6);
     var scope = visibleInvoices();
     var totals = months.map(function(mo){
-      return scope.filter(function(f){ return monthKey(f.emision) === mo.key; })
-        .reduce(function(s,f){ return s + f.total; }, 0);
+      var fac = scope.filter(function(f){ return monthKey(f.emision) === mo.key; })
+        .reduce(function(s,f){ return s + facturadoDe(f); }, 0);
+      var nc = sumaNC(visibleNCs().filter(function(n){ return monthKey(n.emision) === mo.key; }));
+      return Math.max(0, fac - nc);
     });
 
     var svg = document.getElementById("chart");
@@ -2309,7 +2388,8 @@
         '<td>' + fmtDate(new Date(f.vencimiento)) + '</td>' +
         '<td><span class="badge ' + estado + '"><span class="dot"></span>' + ESTADO_LABEL[estado] +
           '</span>' + (parcial ? ' <span class="badge parcial"><span class="dot"></span>Parcial</span>' : '') +
-          (f.tipoDoc === "56" ? ' <span class="badge tipo-nd"><span class="dot"></span>ND</span>' : '') + '</td>' +
+          (f.tipoDoc === "56" ? ' <span class="badge tipo-nd"><span class="dot"></span>ND</span>' : '') +
+          (!f.anulada && ncMontoDe(f) > 0 ? ' <span class="badge tipo-nd" title="Nota de crédito parcial: rebaja el saldo"><span class="dot"></span>NC −' + fmtCLP(ncMontoDe(f)) + '</span>' : '') + '</td>' +
         '<td></td>' +
         '<td></td>' +
         '<td></td>';
@@ -2678,6 +2758,10 @@
       if (rank[estado] > rank[c.peor]) c.peor = estado;
     });
 
+    visibleNCs().forEach(function(nc){
+      var c = byClient[nc.razonSocial + "||" + nc.rut];
+      if (c) c.total -= Number(nc.total) || 0;
+    });
     var list = Object.keys(byClient).map(function(k){ return byClient[k]; })
       .sort(function(a,b){ return b.pendiente - a.pendiente; });
 
@@ -2866,7 +2950,7 @@
   function reportesMonths(){
     if (state.yearFilter === "todos" && state.monthFilter === "todos") return lastMonths(6);
     var scope = visibleInvoices();
-    var keys = Array.from(new Set(scope.map(function(f){ return monthKey(f.emision); }))).sort();
+    var keys = Array.from(new Set(scope.concat(visibleNCs()).map(function(f){ return monthKey(f.emision); }))).sort();
     return keys.map(function(key){
       var parts = key.split("-");
       var y = parts[0], m = parseInt(parts[1], 10) - 1;
@@ -2877,9 +2961,11 @@
   function reportesRows(){
     return reportesMonths().map(function(mo){
       var invs = visibleInvoices().filter(function(f){ return monthKey(f.emision) === mo.key; });
-      var facturado = invs.reduce(function(s,f){ return s + facturadoDe(f); }, 0);
+      var facturado = invs.reduce(function(s,f){ return s + facturadoDe(f); }, 0)
+        - sumaNC(visibleNCs().filter(function(n){ return monthKey(n.emision) === mo.key; }));
       var pagado = invs.reduce(function(s,f){ return s + montoPagadoDe(f); }, 0);
-      return { label: mo.label, facturado: facturado, pagado: pagado, pendiente: facturado - pagado, n: invs.length };
+      var pendiente = invs.reduce(function(s,f){ return s + saldoDe(f); }, 0);
+      return { label: mo.label, facturado: facturado, pagado: pagado, pendiente: pendiente, n: invs.length };
     });
   }
 
@@ -3155,13 +3241,15 @@
   function buildFacturasJSON(){
     // Keep every stored field (responsable, concepto, anulada, rechazada, tipoDoc, …)
     // so publishing to GitHub never strips data added after the original schema.
-    var out = state.invoices.map(function(f){
+    var out = allDocs().map(function(f){
       var o = {};
       Object.keys(f).forEach(function(k){
         if (k.charAt(0) !== "_" && typeof f[k] !== "function") o[k] = f[k];
       });
-      o.pagada = !!f.pagada;
-      o.montoPagado = montoPagadoDe(f);
+      if (!esNC(f)){
+        o.pagada = !!f.pagada;
+        o.montoPagado = montoPagadoDe(f);
+      }
       return o;
     });
     return JSON.stringify(out, null, 2);
@@ -3352,7 +3440,7 @@
       throw new Error("No reconozco el formato de este archivo (¿es el CSV del Libro de Ventas del SII, con la fila de encabezados incluida?).");
     }
 
-    var notasCredito = []; // folios referenciados por una NC en este mismo archivo
+    var ncCandidatas = []; // notas de crédito (tipo 61) de este archivo
     var candidatas = [];   // facturas candidatas a agregar
     var sinFecha = 0;
 
@@ -3362,10 +3450,22 @@
       var tipoDoc = String(cells[idx.tipoDoc] || "").trim();
 
       if (tipoDoc === "61"){
-        if (idx.folioRef >= 0){
-          var refFolio = String(cells[idx.folioRef] || "").trim();
-          if (refFolio) notasCredito.push(refFolio);
-        }
+        var ncFolio = String(cells[idx.folio] || "").trim();
+        var ncFecha = parseRCVDate(cells[idx.fecha]);
+        if (!ncFolio) continue;
+        if (!ncFecha){ sinFecha++; continue; }
+        var ncNeto = idx.neto >= 0 ? Math.abs(parseCLNumber(cells[idx.neto])) : 0;
+        var ncIva = idx.iva >= 0 ? Math.abs(parseCLNumber(cells[idx.iva])) : 0;
+        var ncTotal = idx.total >= 0 ? Math.abs(parseCLNumber(cells[idx.total])) : (ncNeto + ncIva);
+        ncCandidatas.push({
+          folio: ncFolio,
+          tipoDoc: "61",
+          razonSocial: idx.razon >= 0 ? String(cells[idx.razon] || "").trim() : "",
+          rut: idx.rut >= 0 ? String(cells[idx.rut] || "").trim() : "",
+          neto: ncNeto, iva: ncIva, total: ncTotal,
+          emision: new Date(ncFecha + "T12:00:00").toISOString(),
+          folioRef: idx.folioRef >= 0 ? String(cells[idx.folioRef] || "").trim() : ""
+        });
         continue;
       }
 
@@ -3399,35 +3499,27 @@
     var folioExistente = {};
     state.invoices.forEach(function(f){ folioExistente[String(f.folio)] = true; });
 
-    var ncSet = {};
-    notasCredito.forEach(function(f){ ncSet[f] = true; });
-
-    var nuevas = [], duplicadas = 0, anuladas = 0, notasDebito = 0;
+    var nuevas = [], duplicadas = 0, notasDebito = 0;
     candidatas.forEach(function(f){
-      if (ncSet[f.folio]){ anuladas++; return; }
       if (folioExistente[f.folio]){ duplicadas++; return; }
       folioExistente[f.folio] = true; // evita duplicados dentro del mismo archivo
       if (f.tipoDoc === "56") notasDebito++;
       nuevas.push(f);
     });
 
-    // Una Nota de Crédito puede llegar en un mes posterior al de la factura
-    // original (ya cargada en meses anteriores). En ese caso no aparece en
-    // `candidatas` de este archivo, así que hay que buscarla directo en las
-    // facturas ya existentes y marcarla como anulada en vez de dejarla
-    // silenciosamente "al día" o "vencida".
-    var anuladasExistentes = 0;
-    notasCredito.forEach(function(folioRef){
-      var existente = state.invoices.filter(function(f){ return String(f.folio) === folioRef; })[0];
-      if (existente && !existente.anulada){
-        existente.anulada = true;
-        anuladasExistentes++;
-      }
+    // NC: se guardan como documentos propios (serie de folios distinta a la de facturas).
+    var ncExistente = {};
+    (state.notasCredito || []).forEach(function(nc){ ncExistente[String(nc.folio)] = true; });
+    var nuevasNC = [], ncDuplicadas = 0;
+    ncCandidatas.forEach(function(nc){
+      if (ncExistente[nc.folio]){ ncDuplicadas++; return; }
+      ncExistente[nc.folio] = true;
+      nuevasNC.push(nc);
     });
 
     return {
-      nuevas: nuevas, duplicadas: duplicadas, anuladas: anuladas,
-      anuladasExistentes: anuladasExistentes, notasDebito: notasDebito, sinFecha: sinFecha
+      nuevas: nuevas, duplicadas: duplicadas, nuevasNC: nuevasNC, ncDuplicadas: ncDuplicadas,
+      notasDebito: notasDebito, sinFecha: sinFecha
     };
   }
 
@@ -3436,6 +3528,32 @@
     log.hidden = false;
     log.classList.toggle("error", !!isError);
     log.innerHTML = html;
+  }
+
+  // Marca "Anulada (NC)" las facturas cuyas NC cubren el total; las parciales
+  // solo rebajan el saldo (ver saldoDe).
+  // Aplica el efecto de las NC sobre las facturas (marca anulada si la cubren
+  // por completo). Recorre TODAS las NC guardadas (para que quede consistente
+  // pase lo que pase), pero solo informa en el log el efecto de `soloNC` si se
+  // pasa (las NC recién importadas), para no recontar en cada importación.
+  function aplicarNC(soloNC){
+    var porFolio = {};
+    state.invoices.forEach(function(f){ porFolio[String(f.folio)] = f; });
+    var afectadas = {};
+    (state.notasCredito || []).forEach(function(nc){
+      var f = porFolio[String(nc.folioRef)];
+      if (!f) return;
+      if (ncMontoDe(f) >= f.total) f.anulada = true;
+    });
+    var anuladas = 0, parciales = 0, sinFactura = 0;
+    (soloNC || state.notasCredito || []).forEach(function(nc){
+      var f = porFolio[String(nc.folioRef)];
+      if (!f){ sinFactura++; return; }
+      if (afectadas[f.folio]) return;
+      afectadas[f.folio] = true;
+      if (f.anulada) anuladas++; else parciales++;
+    });
+    return { anuladas: anuladas, parciales: parciales, sinFactura: sinFactura };
   }
 
   function runImport(text){
@@ -3448,13 +3566,15 @@
     }
 
     state.invoices = state.invoices.concat(result.nuevas);
-    // parseRCV puede haber marcado facturas YA existentes como anuladas
-    // (una NC que llegó en un mes posterior al de la factura original), así
-    // que siempre guardamos y re-renderizamos aunque no haya facturas nuevas.
+    state.notasCredito = (state.notasCredito || []).concat(result.nuevasNC);
+    var efectoNC = aplicarNC(result.nuevasNC);
+    // Siempre guardamos y re-renderizamos: una NC nueva puede afectar
+    // facturas ya cargadas aunque no haya facturas nuevas.
     saveData();
     renderAll();
 
     var totalNuevo = result.nuevas.reduce(function(s,f){ return s + f.total; }, 0);
+    var totalNC = sumaNC(result.nuevasNC);
     var lines = [];
     if (result.nuevas.length){
       lines.push("<strong>" + result.nuevas.length + " factura(s) nueva(s) agregada(s)</strong> por " + fmtCLP(totalNuevo) + ".");
@@ -3462,17 +3582,20 @@
       lines.push("No se agregó ninguna factura nueva.");
     }
     lines.push("Duplicadas omitidas (ya existían): " + result.duplicadas + ".");
-    lines.push("Anuladas por nota de crédito, dentro del mismo archivo (excluidas, no se agregan): " + result.anuladas + ".");
-    if (result.anuladasExistentes){
-      lines.push("<strong>" + result.anuladasExistentes + " factura(s) que ya tenías cargadas fueron marcadas como \"Anulada (NC)\"</strong> porque llegó una nota de crédito que las referencia — revísalas en Facturas, quedan visibles con ese estado en vez de desaparecer.");
+    if (result.nuevasNC.length){
+      lines.push("<strong>" + result.nuevasNC.length + " nota(s) de crédito registrada(s)</strong> por " + fmtCLP(totalNC) + " — restan en el mes en que se emitieron.");
     }
+    if (result.ncDuplicadas) lines.push("Notas de crédito que ya estaban registradas: " + result.ncDuplicadas + ".");
+    if (efectoNC.anuladas) lines.push("<strong>" + efectoNC.anuladas + " factura(s) quedaron \"Anulada (NC)\"</strong> (la NC cubre el total).");
+    if (efectoNC.parciales) lines.push(efectoNC.parciales + " factura(s) con NC parcial: su saldo por cobrar se rebajó en el monto de la NC.");
+    if (efectoNC.sinFactura) lines.push(efectoNC.sinFactura + " NC hacen referencia a facturas que no están cargadas; igual restan en su mes.");
     if (result.notasDebito){
       lines.push(result.notasDebito + " nota(s) de débito detectada(s) — se agregaron como documento(s) propio(s) marcado(s) con la etiqueta \"ND\" junto al estado.");
     }
     if (result.sinFecha) lines.push("Filas sin fecha reconocible (omitidas): " + result.sinFecha + ".");
     lines.push("<br>Recuerda descargar el <strong>facturas.json</strong> actualizado (botón más abajo) y subirlo a GitHub — o usar \"Guardar y publicar en GitHub\" si ya tienes el token — para que el link publicado y el aviso semanal por correo vean estos cambios.");
     showImportLog(lines.join("<br>"));
-    showToast((result.nuevas.length || 0) + " factura(s) nueva(s) importada(s)" + (result.anuladasExistentes ? ", " + result.anuladasExistentes + " marcada(s) como anulada(s)" : "") + ".");
+    showToast((result.nuevas.length || 0) + " factura(s) y " + result.nuevasNC.length + " NC importada(s).");
   }
 
   // --- Cartola bancaria: solo sugiere, nunca marca pagado sin confirmar ---
@@ -3766,30 +3889,135 @@
       driveWrap.hidden = true;
     }
 
+    var hoy = new Date();
     var goalWrap = document.getElementById("goal-semaforo-wrap");
-    var meta = state.settings.metaMensual || 0;
-    if (meta > 0){
-      var thisMonthKey = monthKey(new Date());
-      var facturadoMes = state.invoices
-        .filter(function(f){ return monthKey(f.emision) === thisMonthKey; })
-        .reduce(function(s,f){ return s + facturadoDe(f); }, 0);
-      var pct = Math.round((facturadoMes / meta) * 100);
-      var color = pct >= 100 ? "verde" : (pct >= 70 ? "amarilla" : "roja");
-      var label = pct >= 100 ? "Meta cumplida" : (pct >= 70 ? "Cerca de la meta" : "Bajo la meta");
-      goalWrap.innerHTML =
-        '<div class="goal-semaforo">' +
-          '<span class="dot3 ' + color + '"></span>' +
-          '<span class="txt"><strong>' + label + ' (' + pct + '%)</strong> — llevas ' + fmtCLP(facturadoMes) +
-          ' de la meta mensual de ' + fmtCLP(meta) + ' este mes.</span>' +
-          '<span class="info-tip" tabindex="0"><i class="ic">i</i><span class="bubble">Compara lo facturado en el mes calendario actual contra la meta que configuraste en Ajustes. Verde = 100% o más, amarillo = 70-99%, rojo = menos de 70%.</span></span>' +
-        '</div>';
-      goalWrap.hidden = false;
+    var tieneMetaMensual = (state.settings.metaMensual || 0) > 0 ||
+      Object.keys(state.settings.metasPorMes || {}).length > 0;
+    if (tieneMetaMensual){
+      // Follow the Año / Mes filters: a chosen month → that month, con SU propia
+      // meta (metaDelMes); con solo un año, se suma la meta efectiva de cada mes
+      // transcurrido (permite metas distintas por temporada); sin filtros, el
+      // mes en curso.
+      var yf = state.yearFilter, mf = state.monthFilter;
+      var periodo, metaPeriodo, filtroPeriodo, metaLabel;
+      if (mf !== "todos"){
+        var anio = yf;
+        if (anio === "todos"){
+          var anios = state.invoices
+            .filter(function(f){ return monthKey(f.emision).slice(5) === mf; })
+            .map(function(f){ return new Date(f.emision).getFullYear(); });
+          anio = String(anios.length ? Math.max.apply(null, anios) : hoy.getFullYear());
+        }
+        var key = anio + "-" + mf;
+        filtroPeriodo = function(f){ return monthKey(f.emision) === key; };
+        periodo = "en " + MESES_LARGO[parseInt(mf,10)-1].toLowerCase() + " " + anio;
+        metaPeriodo = metaDelMes(parseInt(mf,10));
+        metaLabel = "de la meta de " + MESES_LARGO[parseInt(mf,10)-1].toLowerCase() + " de ";
+      } else if (yf !== "todos"){
+        var nMeses = String(hoy.getFullYear()) === yf ? hoy.getMonth() + 1 : 12;
+        metaPeriodo = 0;
+        for (var mi = 1; mi <= nMeses; mi++) metaPeriodo += metaDelMes(mi);
+        filtroPeriodo = function(f){ return String(new Date(f.emision).getFullYear()) === yf; };
+        periodo = "en " + yf;
+        metaLabel = "de la meta de esos " + nMeses + (nMeses === 1 ? " mes" : " meses") + " (sumando la meta propia de cada uno) = ";
+      } else {
+        var thisMonthKey = monthKey(hoy);
+        filtroPeriodo = function(f){ return monthKey(f.emision) === thisMonthKey; };
+        periodo = "este mes";
+        metaPeriodo = metaDelMes(hoy.getMonth() + 1);
+        metaLabel = "de la meta de este mes de ";
+      }
+      var ncPeriodo = sumaNC((state.notasCredito || []).filter(filtroPeriodo));
+      var facturadoMes = state.invoices.filter(filtroPeriodo)
+        .reduce(function(s,f){ return s + facturadoDe(f); }, 0) - ncPeriodo;
+      if (metaPeriodo > 0){
+        var pct = Math.round((facturadoMes / metaPeriodo) * 100);
+        var color = pct >= 100 ? "verde" : (pct >= 70 ? "amarilla" : "roja");
+        var label = pct >= 100 ? "Meta cumplida" : (pct >= 70 ? "Cerca de la meta" : "Bajo la meta");
+        goalWrap.innerHTML =
+          '<div class="goal-semaforo">' +
+            '<span class="dot3 ' + color + '"></span>' +
+            '<span class="txt"><strong>' + label + ' (' + pct + '%)</strong> — ' + fmtCLP(facturadoMes) +
+            ' facturado ' + periodo +
+            (ncPeriodo ? ' (neto de ' + fmtCLP(ncPeriodo) + ' en NC)' : '') + ', ' + metaLabel + fmtCLP(metaPeriodo) + '.</span>' +
+            '<span class="info-tip" tabindex="0"><i class="ic">i</i><span class="bubble">Sigue los filtros de Año y Mes: con un mes elegido usa la meta propia de ese mes (o la meta por defecto si no tiene una); con solo un año, suma la meta de cada mes transcurrido; sin filtros, el mes en curso. Las metas por mes se configuran en Ajustes. Las notas de crédito restan en el mes en que se emitieron. Verde = 100% o más, amarillo = 70-99%, rojo = menos de 70%.</span></span>' +
+          '</div>';
+        goalWrap.hidden = false;
+      } else {
+        goalWrap.hidden = true;
+      }
     } else {
       goalWrap.hidden = true;
     }
+
+    var goalAnualWrap = document.getElementById("goal-anual-wrap");
+    var metaAnual = state.settings.metaAnual || 0;
+    if (metaAnual > 0){
+      var anioActual = String(hoy.getFullYear());
+      var filtroAnio = function(f){ return String(new Date(f.emision).getFullYear()) === anioActual; };
+      var ncAnio = sumaNC((state.notasCredito || []).filter(filtroAnio));
+      var facturadoAnio = state.invoices.filter(filtroAnio)
+        .reduce(function(s,f){ return s + facturadoDe(f); }, 0) - ncAnio;
+      var pctA = Math.round((facturadoAnio / metaAnual) * 100);
+      var pctClamp = Math.max(0, Math.min(100, pctA));
+      var colorVar = pctA >= 100 ? "var(--good)" : (pctA >= 70 ? "var(--warning)" : "var(--critical)");
+      var labelA = pctA >= 100 ? "Meta anual cumplida" : (pctA >= 70 ? "Cerca de la meta anual" : "Bajo la meta anual");
+      var R = 46, C = 2 * Math.PI * R;
+      var dash = (pctClamp/100) * C;
+      goalAnualWrap.innerHTML =
+        '<div class="goal-anual-big">' +
+          '<svg class="ring" width="112" height="112" viewBox="0 0 112 112">' +
+            '<circle cx="56" cy="56" r="' + R + '" fill="none" stroke="var(--gridline)" stroke-width="12"/>' +
+            '<circle cx="56" cy="56" r="' + R + '" fill="none" stroke="' + colorVar + '" stroke-width="12" ' +
+              'stroke-dasharray="' + dash + ' ' + C + '" stroke-linecap="round" transform="rotate(-90 56 56)"/>' +
+            '<text x="56" y="62" text-anchor="middle" font-size="22" font-weight="800" fill="var(--text-primary)">' + pctA + '%</text>' +
+          '</svg>' +
+          '<div class="txt-big">' +
+            '<span class="lbl-big" style="color:' + colorVar + '">' + labelA + '</span>' +
+            '<span class="pct-big">' + fmtCLP(facturadoAnio) + '</span>' +
+            '<span class="sub-big">de la meta de venta total ' + anioActual + ': ' + fmtCLP(metaAnual) +
+              (ncAnio ? ' (neto de ' + fmtCLP(ncAnio) + ' en NC)' : '') + '</span>' +
+          '</div>' +
+          '<span class="info-tip" tabindex="0"><i class="ic">i</i><span class="bubble">Siempre el año en curso completo, sin importar los filtros de Año/Mes. Se configura en Ajustes, aparte de las metas mensuales.</span></span>' +
+        '</div>';
+      goalAnualWrap.hidden = false;
+    } else {
+      goalAnualWrap.hidden = true;
+    }
+  }
+
+  function renderNC(){
+    var body = document.getElementById("nc-body");
+    if (!body) return;
+    var list = visibleNCs().slice().sort(function(a,b){ return new Date(b.emision) - new Date(a.emision); });
+    document.getElementById("nc-summary").textContent = list.length
+      ? list.length + " NC · " + fmtCLP(sumaNC(list)) + " restado de lo facturado en su mes"
+      : "";
+    if (!list.length){
+      body.innerHTML = '<tr><td colspan="7" class="empty-state">Sin notas de crédito en este período. Se cargan al importar el Libro de Ventas (RCV) en Ajustes.</td></tr>';
+      return;
+    }
+    var porFolio = {};
+    state.invoices.forEach(function(f){ porFolio[String(f.folio)] = f; });
+    body.innerHTML = list.map(function(nc){
+      var f = porFolio[String(nc.folioRef)];
+      var efecto = !f ? "Factura no cargada"
+        : (f.anulada ? "Anula la factura" : "Rebaja parcial del saldo");
+      var mesFac = f && monthKey(f.emision) !== monthKey(nc.emision)
+        ? ' <span class="muted">(factura de ' + MESES[new Date(f.emision).getMonth()] + ' ' + String(new Date(f.emision).getFullYear()).slice(2) + ')</span>' : '';
+      return '<tr>' +
+        '<td class="tabular">' + esc(String(nc.folio)) + '</td>' +
+        '<td>' + fmtDate(new Date(nc.emision)) + '</td>' +
+        '<td>' + esc(nc.razonSocial || "") + '</td>' +
+        '<td class="tabular">' + esc(nc.rut || "") + '</td>' +
+        '<td class="tabular">' + (nc.folioRef ? esc(String(nc.folioRef)) : '—') + mesFac + '</td>' +
+        '<td class="num tabular">−' + fmtCLP(nc.total) + '</td>' +
+        '<td>' + efecto + '</td></tr>';
+    }).join("");
   }
 
   function renderAll(){
+    renderNC();
     renderYearFilter();
     renderGoalAndDrive();
     renderKPIs();
@@ -3995,7 +4223,7 @@
 
   document.getElementById("reset-btn").addEventListener("click", function(){
     folioSeq = 1000;
-    state.invoices = seedData();
+    setDocs(seedData());
     saveData();
     renderAll();
     showToast("Datos restablecidos a la carga de ejemplo.");
@@ -4090,9 +4318,18 @@
     var plazo = parseInt(document.getElementById("set-plazo").value, 10);
     var umbral = parseInt(document.getElementById("set-umbral").value, 10);
     var meta = parseInt(document.getElementById("set-meta").value, 10);
+    var metaAnual = parseInt(document.getElementById("set-meta-anual").value, 10);
     if (!isNaN(plazo) && plazo > 0) state.settings.plazoDias = plazo;
     if (!isNaN(umbral) && umbral > 0) state.settings.umbralDias = umbral;
     state.settings.metaMensual = (!isNaN(meta) && meta >= 0) ? meta : 0;
+    state.settings.metaAnual = (!isNaN(metaAnual) && metaAnual >= 0) ? metaAnual : 0;
+    var metasPorMes = {};
+    for (var mm = 1; mm <= 12; mm++){
+      var el = document.getElementById("meta-mes-" + mm);
+      var v = el ? parseInt(el.value, 10) : NaN;
+      if (!isNaN(v) && v > 0) metasPorMes[mm] = v;
+    }
+    state.settings.metasPorMes = metasPorMes;
     saveSettings();
     renderAll();
     showToast("Parámetros de cobranza actualizados.");
@@ -4100,6 +4337,28 @@
   document.getElementById("set-plazo").value = state.settings.plazoDias;
   document.getElementById("set-umbral").value = state.settings.umbralDias;
   document.getElementById("set-meta").value = state.settings.metaMensual || 0;
+  document.getElementById("set-meta-anual").value = state.settings.metaAnual || 0;
+
+  (function buildMetasMesGrid(){
+    var grid = document.getElementById("metas-mes-grid");
+    var html = "";
+    for (var mm = 1; mm <= 12; mm++){
+      var val = (state.settings.metasPorMes || {})[mm] || "";
+      html += '<div class="mes-field">' +
+        '<label for="meta-mes-' + mm + '">' + MESES_LARGO[mm-1] + '</label>' +
+        '<input type="number" id="meta-mes-' + mm + '" min="0" step="1000" placeholder="Por defecto" value="' + val + '">' +
+        '</div>';
+    }
+    grid.innerHTML = html;
+  })();
+
+  // "Meta mensual efectiva" del mes m (1-12): su propia meta si la tiene, si no la
+  // meta por defecto. Se usa tanto para el semáforo mensual como para sumar el
+  // año completo mes a mes.
+  function metaDelMes(m){
+    var esp = (state.settings.metasPorMes || {})[m];
+    return esp > 0 ? esp : (state.settings.metaMensual || 0);
+  }
 
   document.getElementById("drive-form").addEventListener("submit", function(e){
     e.preventDefault();
@@ -4203,7 +4462,7 @@
 
   setView("resumen");
   loadInvoices().then(function(invoices){
-    state.invoices = invoices;
+    setDocs(invoices);
     renderAll();
     renderDataSourceNote();
   });
