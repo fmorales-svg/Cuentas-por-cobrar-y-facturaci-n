@@ -730,6 +730,8 @@
     color: var(--page);
     padding: 10px 18px;
     border-radius: 10px;
+    max-width: min(90vw, 460px);
+    text-align: center;
     font-size: 13px;
     font-weight: 600;
     box-shadow: var(--shadow);
@@ -741,6 +743,7 @@
     text-align: center;
   }
   .toast.show{ opacity: 1; transform: translate(-50%, 0); }
+  .toast.error{ background: var(--critical); color: #fff; }
 
   /* ---------- Aging cards (Cobranza view) ---------- */
   .aging-grid{
@@ -1755,6 +1758,22 @@
     saveSettings(); saveDriveUrl(); saveEmailjsConfig(); saveNotesStore(); saveEmailHistory();
   }
 
+  // Ventana de protección: tras cualquier cambio hecho EN ESTE navegador (marcar
+  // pagada, editar, etc.), no se acepta lo que traiga facturas.json por un rato —
+  // ni por el sondeo automático NI al recargar la página. Sin esto, un cambio
+  // podía volver solo a como estaba antes, porque GitHub Pages demora 1-2
+  // minutos en servir lo recién publicado (o, si el token de GitHub falta o
+  // está mal, el archivo remoto directamente nunca cambia). La marca de tiempo
+  // se guarda en localStorage para que sobreviva a un F5 o a cerrar la pestaña.
+  var PROTECCION_MS = 3 * 60 * 1000;
+  var LAST_LOCAL_KEY = "dmz-ultimo-cambio-local";
+  function leerUltimoCambioLocal(){
+    try { return parseInt(localStorage.getItem(LAST_LOCAL_KEY), 10) || 0; }
+    catch(e){ return 0; }
+  }
+  var ultimoCambioLocal = leerUltimoCambioLocal();
+  function dentroDeProteccion(){ return Date.now() - ultimoCambioLocal < PROTECCION_MS; }
+
   async function loadInvoices(){
     try {
       var res = await fetch("facturas.json", { cache: "no-store" });
@@ -1763,6 +1782,17 @@
         // v2: { documentos: [...], config: {...} } — v1 (compatibilidad): array plano.
         var docs = Array.isArray(data) ? data : data.documentos;
         if (Array.isArray(docs) && docs.length){
+          // Si este navegador hizo un cambio hace poco, no lo pises con lo que
+          // acaba de llegar del servidor — puede ser la versión de antes de tu
+          // cambio, todavía no propagada. Usa lo que ya tenías guardado aquí.
+          if (dentroDeProteccion()){
+            var reciente = fromLocalStorage();
+            if (reciente){
+              bumpFolioSeq(reciente);
+              state.dataSource = "facturas.json";
+              return reciente;
+            }
+          }
           if (!Array.isArray(data)) aplicarSharedConfig(data.config);
           bumpFolioSeq(docs);
           state.dataSource = "facturas.json";
@@ -1785,21 +1815,13 @@
   // Sondea facturas.json cada 45s para que quien solo mira (sin token de GitHub)
   // vea los cambios que publicó quien edita, sin tener que recargar la página.
   var AUTO_REFRESH_MS = 45000;
-  // Ventana de protección: tras cualquier cambio hecho EN ESTE navegador, no se
-  // acepta lo que llegue del sondeo por un rato. Sin esto, un "Marcar pagada"
-  // podía volver solo a "pendiente" pocos segundos después, porque el sondeo
-  // traía de vuelta la versión vieja de facturas.json (GitHub Pages demora
-  // 1-2 minutos en servir lo recién publicado, y si no hay token configurado
-  // el archivo remoto ni siquiera cambia).
-  var PROTECCION_MS = 3 * 60 * 1000;
-  var ultimoCambioLocal = 0;
   function iniciarAutoRefresh(){
     setInterval(async function(){
       if (state.dataSource !== "facturas.json") return;
       // No pisar mientras hay un formulario de edición abierto, ni justo
       // después de un cambio hecho aquí mismo.
       if (state.editingFolio || !document.getElementById("new-invoice-form").hidden) return;
-      if (Date.now() - ultimoCambioLocal < PROTECCION_MS) return;
+      if (dentroDeProteccion()) return;
       try {
         var res = await fetch("facturas.json", { cache: "no-store" });
         if (!res.ok) return;
@@ -1823,7 +1845,10 @@
   function allDocs(){ return state.invoices.concat(state.notasCredito || []); }
 
   function saveData(desdeSondeo){
-    if (!desdeSondeo) ultimoCambioLocal = Date.now();
+    if (!desdeSondeo){
+      ultimoCambioLocal = Date.now();
+      try { localStorage.setItem(LAST_LOCAL_KEY, String(ultimoCambioLocal)); } catch(e){}
+    }
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(allDocs())); }
     catch(e) { /* storage unavailable (private mode, quota) — data stays in-memory */ }
   }
@@ -1949,12 +1974,13 @@
     ajustes:  { eyebrow: "Configuración", title: "Ajustes", desc: "Parámetros de plazo de pago y umbral del semáforo de vencimiento." }
   };
 
-  function showToast(msg){
+  function showToast(msg, opts){
     var t = document.getElementById("toast");
     t.textContent = msg;
+    t.classList.toggle("error", !!(opts && opts.error));
     t.classList.add("show");
     clearTimeout(showToast._h);
-    showToast._h = setTimeout(function(){ t.classList.remove("show"); }, 2600);
+    showToast._h = setTimeout(function(){ t.classList.remove("show"); }, (opts && opts.duration) || 2600);
   }
 
   function renderKPIs(){
@@ -3459,7 +3485,13 @@
         throw new Error(msg);
       }
     } catch(e){
-      showPublishLog(e.message || "No se pudo publicar en GitHub.", true);
+      var mensaje = e.message || "No se pudo publicar en GitHub.";
+      showPublishLog(mensaje, true);
+      // Un toast normal dura 2.6s y solo se ve en la pantalla en la que estás —
+      // si el error pasa mientras marcas facturas en otra pestaña, hay que
+      // asegurarse de que no pase inadvertido: el cambio quedó SOLO en este
+      // navegador, nunca llegó a publicarse.
+      showToast("⚠ No se pudo publicar en GitHub: " + mensaje, { error: true, duration: 8000 });
     } finally {
       btn.disabled = false;
       btn.textContent = originalText;
