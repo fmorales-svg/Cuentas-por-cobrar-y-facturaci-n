@@ -2,7 +2,7 @@
   "documentos": [
     {
       "folio": 100009,
-      "razonSocial": "Nico Bossans",
+      "razonSocial": "Nico Bossans (mensual)",
       "rut": "0",
       "neto": 0,
       "iva": 0,
@@ -10,9 +10,11 @@
       "total": 2000000,
       "emision": "2026-09-24",
       "vencimiento": "2026-10-24",
-      "pagada": false,
-      "montoPagado": 0,
-      "origen": "manual"
+      "pagada": true,
+      "montoPagado": 2000000,
+      "origen": "manual",
+      "responsable": "",
+      "concepto": ""
     },
     {
       "folio": 100007,
