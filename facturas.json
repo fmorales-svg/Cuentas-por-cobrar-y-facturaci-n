@@ -1,6 +1,20 @@
 {
   "documentos": [
     {
+      "folio": 100009,
+      "razonSocial": "Nico Bossans",
+      "rut": "0",
+      "neto": 0,
+      "iva": 0,
+      "exento": 2000000,
+      "total": 2000000,
+      "emision": "2026-09-24",
+      "vencimiento": "2026-10-24",
+      "pagada": false,
+      "montoPagado": 0,
+      "origen": "manual"
+    },
+    {
       "folio": 100007,
       "razonSocial": "Chinos (Iva)",
       "rut": "0",
@@ -10,8 +24,8 @@
       "total": 1440000,
       "emision": "2026-07-24",
       "vencimiento": "2026-08-23",
-      "pagada": false,
-      "montoPagado": 0,
+      "pagada": true,
+      "montoPagado": 1440000,
       "origen": "manual"
     },
     {
