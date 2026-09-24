@@ -522,7 +522,6 @@
   .scroll-arrow.left{ left: 2px; }
   .scroll-arrow.right{ right: 2px; }
   .scroll-arrow[hidden]{ display: none; }
-  @media (min-width: 900px){ .scroll-arrow{ display: none !important; } }
   table{
     width: 100%;
     border-collapse: collapse;
@@ -541,6 +540,9 @@
     border-bottom: 1px solid var(--gridline);
     white-space: nowrap;
     background: var(--surface);
+    position: sticky;
+    top: 0;
+    z-index: 2;
   }
   tbody td{
     padding: 10px 10px;
@@ -559,6 +561,11 @@
     white-space: normal;
     max-width: 200px;
   }
+  /* Las celdas que quedan "pegadas" en las dos direcciones a la vez (arriba
+     Y al costado) a veces no se repintan bien en algunos navegadores — se
+     ven en blanco aunque el elemento esté en el lugar correcto. Forzar una
+     capa propia con will-change evita ese problema de repintado. */
+  thead th:first-child, thead th:nth-child(2){ will-change: transform; z-index: 3; }
   tbody tr:hover td:first-child{ background: var(--surface-2); }
 
   /* Freeze panes: en Facturas y Cobranza, además del Folio (1ra columna),
@@ -1201,6 +1208,7 @@
               <th class="sortable" data-key="folio" data-type="number">Folio<span class="arrow">▲</span></th>
               <th class="sortable" data-key="razonSocial" data-type="text">Razón social<span class="arrow">▲</span></th>
               <th class="sortable" data-key="rut" data-type="text">RUT<span class="arrow">▲</span></th>
+              <th class="sortable" data-key="emision" data-type="date">Emisión<span class="arrow">▲</span></th>
               <th class="num sortable" data-key="total" data-type="number">Total<span class="arrow">▲</span></th>
               <th class="num sortable" data-key="_saldo" data-type="number">Saldo<span class="arrow">▲</span></th>
               <th class="sortable" data-key="vencimiento" data-type="date">Vencimiento<span class="arrow">▲</span></th>
@@ -2635,22 +2643,35 @@
           var n = Number(netoInput.value) || 0, i = Number(ivaInput.value) || 0, x = Number(exentoInput.value) || 0;
           totalTd.querySelector("strong").textContent = fmtCLP(n + i + x);
         }
+        // Si queda en "Exenta", Neto e IVA no aplican: se bloquean (en vez de
+        // solo dejarlos en 0 y seguir editables) para que no se pueda escribir
+        // por error ahí un monto que después se sume aparte del exento y deje
+        // el total con pesos de más.
+        function aplicarTipoEdit(){
+          var esExenta = tipoSelect.value === "exenta";
+          netoInput.disabled = esExenta;
+          ivaInput.disabled = esExenta;
+          netoInput.style.opacity = esExenta ? "0.4" : "1";
+          ivaInput.style.opacity = esExenta ? "0.4" : "1";
+          exentoInput.title = esExenta ? "Monto exento (edítalo aquí)" : "Monto exento de IVA";
+        }
         tipoSelect.addEventListener("change", function(){
           // Traspasa lo que ya estaba escrito al campo que corresponde al
           // tipo nuevo, en vez de dejarlo perdido en un campo que ya no aplica.
           if (tipoSelect.value === "exenta"){
-            var monto = netoInput.value !== "" ? netoInput.value : exentoInput.value;
-            exentoInput.value = monto;
+            var monto = (Number(netoInput.value) || 0) + (Number(exentoInput.value) || 0);
+            exentoInput.value = monto || "";
             netoInput.value = "0";
             ivaInput.value = "0";
           } else {
-            var montoVuelta = exentoInput.value !== "" ? exentoInput.value : netoInput.value;
-            netoInput.value = montoVuelta;
+            var montoVuelta = (Number(exentoInput.value) || 0) + (Number(netoInput.value) || 0);
+            netoInput.value = montoVuelta || "";
             exentoInput.value = "";
-            ivaInput.value = "";
           }
+          aplicarTipoEdit();
           recalcTotalPreview();
         });
+        aplicarTipoEdit();
         netoInput.addEventListener("input", function(){
           // Si se borra el neto, no tiene sentido dejar un IVA suelto: se
           // limpia solo (si quieres un IVA sin neto asociado, vuelve a
@@ -2702,10 +2723,14 @@
         '<td class="tabular">' + f.folio + '</td>' +
         '<td class="razon">' + f.razonSocial + '</td>' +
         '<td class="tabular">' + f.rut + '</td>' +
-        '<td class="num tabular">' + fmtCLP(f.neto) + '</td>' +
+        '<td class="num tabular">' + (
+          f.neto === 0 && f.exento > 0
+            ? fmtCLP(f.exento) + '<div style="font-size:10.5px; color:var(--muted);">exento</div>'
+            : fmtCLP(f.neto)
+        ) + '</td>' +
         '<td class="num tabular">' + fmtCLP(f.iva) + '</td>' +
         '<td class="num tabular"><strong>' + fmtCLP(f.total) + '</strong>' +
-          (f.exento > 0 ? '<div style="font-size:10.5px; color:var(--muted);">incl. ' + fmtCLP(f.exento) + ' exento</div>' : '') + '</td>' +
+          (f.exento > 0 && f.neto > 0 ? '<div style="font-size:10.5px; color:var(--muted);">incl. ' + fmtCLP(f.exento) + ' exento</div>' : '') + '</td>' +
         '<td class="num tabular">' + fmtCLP(pagado) + '</td>' +
         '<td class="num tabular">' + fmtCLP(saldo) + '</td>' +
         '<td>' + fmtDate(new Date(f.emision)) + '</td>' +
@@ -2921,6 +2946,7 @@
       folio: { type: "number", get: function(f){ return f.folio; } },
       razonSocial: { type: "text", get: function(f){ return f.razonSocial; } },
       rut: { type: "text", get: function(f){ return f.rut; } },
+      emision: { type: "date", get: function(f){ return f.emision; } },
       total: { type: "number", get: function(f){ return f.total; } },
       _saldo: { type: "number", get: function(f){ return saldoDe(f); } },
       vencimiento: { type: "date", get: function(f){ return f.vencimiento; } },
@@ -2934,7 +2960,7 @@
     if (sorted.length){
       var ctT=0, ctS=0;
       sorted.forEach(function(f){ ctT+=f.total; ctS+=saldoDe(f); });
-      cobranzaTotals.innerHTML = '<tr class="totals-row"><td colspan="3">Totales (' + sorted.length + ')</td>' +
+      cobranzaTotals.innerHTML = '<tr class="totals-row"><td colspan="4">Totales (' + sorted.length + ')</td>' +
         '<td class="num tabular">' + fmtCLP(ctT) + '</td>' +
         '<td class="num tabular">' + fmtCLP(ctS) + '</td>' +
         '<td></td><td></td><td></td><td></td></tr>';
@@ -2946,7 +2972,7 @@
     tbody.innerHTML = "";
     if (!sorted.length){
       var tr0 = document.createElement("tr");
-      tr0.innerHTML = '<td colspan="9" class="empty-state">No hay cuentas por cobrar pendientes. Cartera al día.</td>';
+      tr0.innerHTML = '<td colspan="10" class="empty-state">No hay cuentas por cobrar pendientes. Cartera al día.</td>';
       tbody.appendChild(tr0);
     } else {
       sorted.forEach(function(f){
@@ -2959,6 +2985,7 @@
           '<td class="tabular">' + f.folio + '</td>' +
           '<td class="razon">' + f.razonSocial + '</td>' +
           '<td class="tabular">' + f.rut + '</td>' +
+          '<td>' + fmtDate(new Date(f.emision)) + '</td>' +
           '<td class="num tabular">' + fmtCLP(f.total) + '</td>' +
           '<td class="num tabular">' + fmtCLP(saldoDe(f)) + '</td>' +
           '<td>' + fmtDate(new Date(f.vencimiento)) + '</td>' +
@@ -3694,8 +3721,11 @@
     // Además de encolar, si por otra razón igual llega un 409 (por ejemplo,
     // alguien publicando desde otro computador exactamente en ese segundo),
     // se reintenta solo, releyendo el "sha" actualizado, antes de mostrarle
-    // cualquier error al usuario.
-    var MAX_INTENTOS = 3;
+    // cualquier error al usuario. Se espera un poco (con algo de variación al
+    // azar) entre reintentos: si dos navegadores chocan y ambos reintentan de
+    // inmediato, pueden seguir chocando entre sí una y otra vez; el pequeño
+    // atraso desincroniza a los dos para que el segundo alcance a pasar.
+    var MAX_INTENTOS = 6;
     try {
       for (var intento = 1; intento <= MAX_INTENTOS; intento++){
         var sha = null;
@@ -3738,6 +3768,8 @@
         }
 
         if (putResp.status === 409 && intento < MAX_INTENTOS){
+          var espera = 250 * intento + Math.floor(Math.random() * 300);
+          await new Promise(function(resolve){ setTimeout(resolve, espera); });
           continue; // reintenta con el sha recién leído, sin molestar al usuario
         }
 
