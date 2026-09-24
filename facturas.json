@@ -66,13 +66,16 @@
       "folio": 100000,
       "razonSocial": "Chinos (Renta)",
       "rut": "0",
-      "neto": 2900000,
-      "iva": 551000,
-      "total": 3451000,
+      "neto": 0,
+      "iva": 0,
+      "total": 2900000,
       "emision": "2026-01-05",
       "vencimiento": "2026-02-04",
       "pagada": true,
-      "montoPagado": 3451000
+      "montoPagado": 2900000,
+      "exento": 2900000,
+      "responsable": "",
+      "concepto": ""
     },
     {
       "folio": 114,
@@ -1174,7 +1177,8 @@
         "10": 10000000,
         "11": 10000000,
         "12": 10000000
-      }
+      },
+      "plazosPorCliente": {}
     },
     "driveUrl": "https://drive.google.com/drive/u/0/folders/1GunxiQPM5LWRzc1wbRRz_KGIsgtI0E3o",
     "emailjsConfig": {
