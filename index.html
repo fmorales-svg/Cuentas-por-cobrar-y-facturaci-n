@@ -4309,7 +4309,7 @@
   // ---------- Semáforo mensual ----------
   function semaforoAniosDisponibles(){
     var anios = {};
-    (state.facturas || []).forEach(function(f){
+    (state.invoices || []).forEach(function(f){
       if (f.emision) anios[new Date(f.emision).getFullYear()] = true;
     });
     var actual = new Date().getFullYear();
@@ -4333,7 +4333,7 @@
     if (!grid) return;
     poblarSemaforoYear();
     var anio = Number(state.semaforoYear || new Date().getFullYear());
-    var facturasAnio = (state.facturas || []).filter(function(f){
+    var facturasAnio = (state.invoices || []).filter(function(f){
       return f.emision && new Date(f.emision).getFullYear() === anio;
     });
     grid.innerHTML = MESES_LARGO.map(function(nombreMes, idxMes){
