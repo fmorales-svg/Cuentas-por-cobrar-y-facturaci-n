@@ -1,3 +1,4 @@
+<meta charset="UTF-8">
 <title>Cobranza DMZ</title>
 <meta name="description" content="Dashboard de facturación y cobranzas con notificaciones de vencimiento, vistas de cobranza, clientes y reportes, listo para cargar datos reales.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1724,15 +1725,42 @@
    *    external monitoring).
    * 3. Example data, generated on the fly.
    */
+  // Claves de state.settings/etc. que SÍ viajan en facturas.json para que todo
+  // el equipo vea lo mismo (metas, plazos, Drive, EmailJS, notas, historial de
+  // correos). El token de GitHub (state.githubConfig) NUNCA va aquí — es un
+  // archivo que cualquiera con el link puede leer, y el token es secreto.
+  function sharedConfig(){
+    return {
+      settings: state.settings,
+      driveUrl: state.driveUrl,
+      emailjsConfig: state.emailjsConfig,
+      clientNotes: state.clientNotes,
+      emailHistory: state.emailHistory
+    };
+  }
+  function aplicarSharedConfig(cfg){
+    if (!cfg || typeof cfg !== "object") return;
+    if (cfg.settings) state.settings = Object.assign({}, state.settings, cfg.settings);
+    if (typeof cfg.driveUrl === "string") state.driveUrl = cfg.driveUrl;
+    if (cfg.emailjsConfig) state.emailjsConfig = Object.assign({}, state.emailjsConfig, cfg.emailjsConfig);
+    if (cfg.clientNotes) state.clientNotes = cfg.clientNotes;
+    if (cfg.emailHistory) state.emailHistory = cfg.emailHistory;
+    // Se guardan también localmente, como respaldo si facturas.json no está disponible.
+    saveSettings(); saveDriveUrl(); saveEmailjsConfig(); saveNotesStore(); saveEmailHistory();
+  }
+
   async function loadInvoices(){
     try {
       var res = await fetch("facturas.json", { cache: "no-store" });
       if (res.ok){
         var data = await res.json();
-        if (Array.isArray(data) && data.length){
-          bumpFolioSeq(data);
+        // v2: { documentos: [...], config: {...} } — v1 (compatibilidad): array plano.
+        var docs = Array.isArray(data) ? data : data.documentos;
+        if (Array.isArray(docs) && docs.length){
+          if (!Array.isArray(data)) aplicarSharedConfig(data.config);
+          bumpFolioSeq(docs);
           state.dataSource = "facturas.json";
-          return data;
+          return docs;
         }
       }
     } catch(e) { /* no facturas.json next to this page (e.g. previewing the artifact) — fall through */ }
@@ -1746,6 +1774,29 @@
 
     state.dataSource = "demo";
     return seedData();
+  }
+
+  // Sondea facturas.json cada 45s para que quien solo mira (sin token de GitHub)
+  // vea los cambios que publicó quien edita, sin tener que recargar la página.
+  var AUTO_REFRESH_MS = 45000;
+  function iniciarAutoRefresh(){
+    setInterval(async function(){
+      if (state.dataSource !== "facturas.json") return;
+      // No pisar mientras hay un formulario de edición abierto.
+      if (state.editingFolio || !document.getElementById("new-invoice-form").hidden) return;
+      try {
+        var res = await fetch("facturas.json", { cache: "no-store" });
+        if (!res.ok) return;
+        var data = await res.json();
+        var docs = Array.isArray(data) ? data : data.documentos;
+        if (!Array.isArray(docs)) return;
+        if (!Array.isArray(data)) aplicarSharedConfig(data.config);
+        setDocs(docs);
+        bumpFolioSeq(docs);
+        saveData();
+        renderAll();
+      } catch(e){ /* red intermitente — se reintenta en el próximo ciclo */ }
+    }, AUTO_REFRESH_MS);
   }
 
   // facturas.json / LocalStorage keep one array; NCs (tipo 61) are split out on load.
@@ -2934,6 +2985,7 @@
           if (!noteInput.value.trim()) return;
           addNote(c.rut, noteInput.value);
           renderClientes();
+          autoPublicarCambioCompartido();
         }
         noteBtn.addEventListener("click", addNoteHandler);
         noteInput.addEventListener("keydown", function(ev){ if (ev.key === "Enter") addNoteHandler(); });
@@ -3241,7 +3293,7 @@
   function buildFacturasJSON(){
     // Keep every stored field (responsable, concepto, anulada, rechazada, tipoDoc, …)
     // so publishing to GitHub never strips data added after the original schema.
-    var out = allDocs().map(function(f){
+    var documentos = allDocs().map(function(f){
       var o = {};
       Object.keys(f).forEach(function(k){
         if (k.charAt(0) !== "_" && typeof f[k] !== "function") o[k] = f[k];
@@ -3252,7 +3304,10 @@
       }
       return o;
     });
-    return JSON.stringify(out, null, 2);
+    // v2: además de las facturas, viajan los ajustes que todo el equipo debe
+    // compartir (metas, Drive, EmailJS, notas, historial de correos). El token
+    // de GitHub queda fuera a propósito — es secreto y solo vive en este navegador.
+    return JSON.stringify({ documentos: documentos, config: sharedConfig() }, null, 2);
   }
 
   async function exportJSON(){
@@ -3298,6 +3353,18 @@
     log.hidden = false;
     log.classList.toggle("error", !!isError);
     log.innerHTML = html;
+  }
+
+  // Auto-publica en GitHub tras guardar ajustes/Drive/EmailJS/notas, para que el
+  // resto del equipo lo vea sin que el editor tenga que acordarse de apretar
+  // "Guardar y publicar". Si no hay token configurado, no hace nada (los
+  // cambios quedan solo en este navegador) y avisa una sola vez con un toast.
+  function autoPublicarCambioCompartido(){
+    if (state.githubConfig && state.githubConfig.owner && state.githubConfig.repo && state.githubConfig.token){
+      publishToGitHub();
+    } else {
+      showToast("Guardado en este navegador. Configura GitHub abajo para que el resto del equipo también lo vea.");
+    }
   }
 
   async function publishToGitHub(){
@@ -4332,14 +4399,13 @@
     state.settings.metasPorMes = metasPorMes;
     saveSettings();
     renderAll();
-    showToast("Parámetros de cobranza actualizados.");
+    autoPublicarCambioCompartido();
   });
-  document.getElementById("set-plazo").value = state.settings.plazoDias;
-  document.getElementById("set-umbral").value = state.settings.umbralDias;
-  document.getElementById("set-meta").value = state.settings.metaMensual || 0;
-  document.getElementById("set-meta-anual").value = state.settings.metaAnual || 0;
-
-  (function buildMetasMesGrid(){
+  function pintarCamposMetas(){
+    document.getElementById("set-plazo").value = state.settings.plazoDias;
+    document.getElementById("set-umbral").value = state.settings.umbralDias;
+    document.getElementById("set-meta").value = state.settings.metaMensual || 0;
+    document.getElementById("set-meta-anual").value = state.settings.metaAnual || 0;
     var grid = document.getElementById("metas-mes-grid");
     var html = "";
     for (var mm = 1; mm <= 12; mm++){
@@ -4350,7 +4416,8 @@
         '</div>';
     }
     grid.innerHTML = html;
-  })();
+  }
+  pintarCamposMetas();
 
   // "Meta mensual efectiva" del mes m (1-12): su propia meta si la tiene, si no la
   // meta por defecto. Se usa tanto para el semáforo mensual como para sumar el
@@ -4365,9 +4432,10 @@
     state.driveUrl = document.getElementById("drive-url").value.trim();
     saveDriveUrl();
     renderAll();
-    showToast("Link de Drive guardado.");
+    autoPublicarCambioCompartido();
   });
-  document.getElementById("drive-url").value = state.driveUrl;
+  function pintarCampoDrive(){ document.getElementById("drive-url").value = state.driveUrl; }
+  pintarCampoDrive();
 
   document.getElementById("emailjs-form").addEventListener("submit", function(e){
     e.preventDefault();
@@ -4379,13 +4447,15 @@
       if (window.emailjs && state.emailjsConfig.publicKey) window.emailjs.init(state.emailjsConfig.publicKey);
     } catch(err) { /* seguirá cayendo al mailto si algo falla */ }
     renderClientes();
-    showToast(emailjsListo()
-      ? "Envío directo activado — usa \"Enviar cobranza\" en Clientes."
-      : "Guardado. Revisa que los 3 campos estén completos para activar el envío directo.");
+    if (emailjsListo()) showToast("Envío directo activado — usa \"Enviar cobranza\" en Clientes.");
+    autoPublicarCambioCompartido();
   });
-  document.getElementById("ej-service").value = state.emailjsConfig.service;
-  document.getElementById("ej-template").value = state.emailjsConfig.template;
-  document.getElementById("ej-publickey").value = state.emailjsConfig.publicKey;
+  function pintarCamposEmailjs(){
+    document.getElementById("ej-service").value = state.emailjsConfig.service;
+    document.getElementById("ej-template").value = state.emailjsConfig.template;
+    document.getElementById("ej-publickey").value = state.emailjsConfig.publicKey;
+  }
+  pintarCamposEmailjs();
 
   document.getElementById("github-form").addEventListener("submit", function(e){
     e.preventDefault();
@@ -4463,8 +4533,16 @@
   setView("resumen");
   loadInvoices().then(function(invoices){
     setDocs(invoices);
+    // La configuración compartida (metas, Drive, EmailJS, notas) pudo llegar
+    // recién ahora desde facturas.json — repinta los campos que ya se habían
+    // llenado con lo local, y reinicia EmailJS con la public key vigente.
+    pintarCamposMetas();
+    pintarCampoDrive();
+    pintarCamposEmailjs();
+    try { if (window.emailjs && state.emailjsConfig.publicKey) window.emailjs.init(state.emailjsConfig.publicKey); } catch(e){}
     renderAll();
     renderDataSourceNote();
+    iniciarAutoRefresh();
   });
 })();
 </script>
