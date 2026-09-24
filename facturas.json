@@ -1005,8 +1005,8 @@
       "total": 350000,
       "emision": "2026-09-05",
       "vencimiento": "2026-10-05",
-      "pagada": true,
-      "montoPagado": 350000
+      "pagada": false,
+      "montoPagado": 0
     },
     {
       "folio": 207,
@@ -1017,8 +1017,8 @@
       "total": 2044150,
       "emision": "2026-09-07",
       "vencimiento": "2026-10-07",
-      "pagada": false,
-      "montoPagado": 0
+      "pagada": true,
+      "montoPagado": 2044150
     },
     {
       "folio": 208,
