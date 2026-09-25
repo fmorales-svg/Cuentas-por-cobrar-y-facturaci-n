@@ -3402,7 +3402,7 @@
     presupuestoMes: new Date().getMonth() + 1,
     kanbanMode: false,
     notesOpenRut: null,
-    filter: "todas",
+    filtros: ["todas"],
     query: "",
     queryCobranza: "",
     view: "resumen",
@@ -3786,8 +3786,34 @@
 
   function matchesFilter(f){
     var estado = estadoDe(f);
-    if (state.filter === "todas") return true;
-    return estado === state.filter;
+    var activos = state.filtros || ["todas"];
+    if (!activos.length || activos.indexOf("todas") >= 0) return true;
+    return activos.indexOf(estado) >= 0;
+  }
+  // Sincroniza los chips de estado (🔴 Vencidas, 🟡 Por vencer, etc.) con
+  // state.filtros — pueden marcarse varios a la vez (ej. vencidas + por
+  // vencer), y "Todas" es el único excluyente: lo apaga cualquier chip
+  // específico, y lo prende de nuevo si terminas por desmarcarlos todos.
+  function pintarChipsFiltroFacturas(){
+    document.querySelectorAll("[data-filter]").forEach(function(ch){
+      ch.setAttribute("aria-pressed", state.filtros.indexOf(ch.getAttribute("data-filter")) >= 0 ? "true" : "false");
+    });
+  }
+  function setFiltroFacturasSolo(valor){
+    state.filtros = [valor];
+    pintarChipsFiltroFacturas();
+  }
+  function toggleFiltroFacturas(valor){
+    if (valor === "todas"){
+      state.filtros = ["todas"];
+    } else {
+      var i = state.filtros.indexOf(valor);
+      var sinTodas = state.filtros.filter(function(v){ return v !== "todas"; });
+      if (i >= 0) sinTodas = sinTodas.filter(function(v){ return v !== valor; });
+      else sinTodas.push(valor);
+      state.filtros = sinTodas.length ? sinTodas : ["todas"];
+    }
+    pintarChipsFiltroFacturas();
   }
   function matchesQuery(f){
     if (!state.query) return true;
@@ -4801,10 +4827,7 @@
       crossBtn.addEventListener("click", function(){
         state.query = c.rut;
         document.getElementById("search").value = c.rut;
-        state.filter = "todas";
-        document.querySelectorAll(".chip").forEach(function(ch){
-          ch.setAttribute("aria-pressed", ch.getAttribute("data-filter") === "todas" ? "true" : "false");
-        });
+        setFiltroFacturasSolo("todas");
         setView("facturas");
         renderTable();
       });
@@ -6990,11 +7013,9 @@
     refreshScrollArrows();
   }
 
-  document.querySelectorAll(".chip").forEach(function(chip){
+  document.querySelectorAll("[data-filter]").forEach(function(chip){
     chip.addEventListener("click", function(){
-      document.querySelectorAll(".chip").forEach(function(c){ c.setAttribute("aria-pressed","false"); });
-      chip.setAttribute("aria-pressed","true");
-      state.filter = chip.getAttribute("data-filter");
+      toggleFiltroFacturas(chip.getAttribute("data-filter"));
       renderTable();
     });
   });
@@ -7013,12 +7034,15 @@
   document.getElementById("search").addEventListener("input", function(e){
     state.query = e.target.value;
     // Mientras hay texto buscado se ven todas las facturas que calcen, sin
-    // importar el chip de estado — se refleja visualmente marcando "Todas"
-    // (el chip elegido antes se recupera solo al borrar la búsqueda).
-    document.querySelectorAll(".chip").forEach(function(ch){
-      var esTodas = ch.getAttribute("data-filter") === (state.query ? "todas" : state.filter);
-      ch.setAttribute("aria-pressed", esTodas ? "true" : "false");
-    });
+    // importar los chips de estado — se refleja visualmente marcando "Todas"
+    // (los chips elegidos antes se recuperan solos al borrar la búsqueda).
+    if (state.query){
+      document.querySelectorAll("[data-filter]").forEach(function(ch){
+        ch.setAttribute("aria-pressed", ch.getAttribute("data-filter") === "todas" ? "true" : "false");
+      });
+    } else {
+      pintarChipsFiltroFacturas();
+    }
     renderTable();
   });
 
@@ -7037,10 +7061,7 @@
     }
     state.query = String(f.folio);
     document.getElementById("search").value = String(f.folio);
-    state.filter = "todas";
-    document.querySelectorAll(".chip").forEach(function(ch){
-      ch.setAttribute("aria-pressed", ch.getAttribute("data-filter") === "todas" ? "true" : "false");
-    });
+    setFiltroFacturasSolo("todas");
     setView("facturas");
     renderTable();
   }
@@ -7053,10 +7074,7 @@
     }
     state.query = rut;
     document.getElementById("search").value = rut;
-    state.filter = "todas";
-    document.querySelectorAll(".chip").forEach(function(ch){
-      ch.setAttribute("aria-pressed", ch.getAttribute("data-filter") === "todas" ? "true" : "false");
-    });
+    setFiltroFacturasSolo("todas");
     setView("facturas");
     renderTable();
   }
