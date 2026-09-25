@@ -620,6 +620,19 @@
     thead th{ font-size: 9.5px; padding: 6px 6px; }
     tbody td{ font-size: 12px; padding: 7px 6px; }
     td.razon{ max-width: 112px; }
+
+    /* Mismo tratamiento para las tablas nuevas de Presupuesto: primera
+       columna angosta y fija, para que en el celular alcance a verse algo
+       más que un solo dato por golpe de vista. */
+    #table-presupuesto-vs-real thead th:first-child, #table-presupuesto-vs-real tbody td:first-child,
+    #table-presupuesto thead th:first-child, #table-presupuesto tbody td:first-child,
+    #table-proyectos thead th:first-child, #table-proyectos tbody td:first-child,
+    #table-clientes-maestro thead th:first-child, #table-clientes-maestro tbody td:first-child,
+    #table-propuestas thead th:first-child, #table-propuestas tbody td:first-child{
+      position: sticky; left: 0; background: var(--surface-1, #14161a);
+      z-index: 2; min-width: 92px; max-width: 108px; white-space: normal;
+      box-shadow: 1px 0 0 var(--gridline);
+    }
   }
   td.num, th.num{ text-align: right; font-variant-numeric: tabular-nums; }
   td.razon{ white-space: normal; max-width: 220px; }
@@ -965,6 +978,10 @@
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 12l8-8 8 8M6 10v9a1 1 0 0 0 1 1h4v-6h2v6h4a1 1 0 0 0 1-1v-9"/></svg>
       Resumen
     </button>
+    <button class="nav-item" type="button" data-view="presupuesto">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v16M8 13h9M8 17h6"/></svg>
+      Presupuesto
+    </button>
     <button class="nav-item" type="button" data-view="facturas">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 3h8l4 4v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M9 12h6M9 16h6M9 8h2"/></svg>
       Facturas
@@ -1133,6 +1150,319 @@
           <tbody id="recent-body"></tbody>
         </table>
       </div>
+    </section>
+  </section>
+
+  <!-- ================= PRESUPUESTO ================= -->
+  <section class="view" data-view="presupuesto" hidden>
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Tipo de cambio</h2>
+        <span class="hint" id="tasas-fecha-hint">sin actualizar</span>
+      </div>
+      <p style="font-size:13px; color:var(--text-secondary); max-width:640px; line-height:1.6;">
+        Se usa para convertir a pesos las líneas de presupuesto y facturas en UF, USD o EUR — la conversión se deja
+        fija en la fecha en que generas la factura, no antes. Actualiza el valor del día antes de generar facturas.
+      </p>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; margin-top:8px;">
+        <div class="field" style="min-width:130px;">
+          <label for="tasa-uf">UF</label>
+          <input type="number" id="tasa-uf" min="0" step="0.01">
+        </div>
+        <div class="field" style="min-width:130px;">
+          <label for="tasa-usd">USD</label>
+          <input type="number" id="tasa-usd" min="0" step="0.01">
+        </div>
+        <div class="field" style="min-width:130px;">
+          <label for="tasa-eur">EUR</label>
+          <input type="number" id="tasa-eur" min="0" step="0.01">
+        </div>
+        <button class="btn ghost small" id="tasas-guardar-btn" type="button">Guardar manualmente</button>
+        <button class="btn primary small" id="tasas-actualizar-btn" type="button">↻ Actualizar automático</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Pipeline comercial</h2>
+        <span class="hint">Backlog = ya son clientes (abajo) · Pipeline = en conversación · Rechazada = no se ganó, queda el historial</span>
+      </div>
+      <form class="settings-form" id="new-propuesta-form" style="max-width:760px; gap:12px;">
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <div class="field" style="flex:2; min-width:180px;">
+            <label for="pp-razon">Prospecto / razón social</label>
+            <input type="text" id="pp-razon" placeholder="Ej: Nueva Empresa SPA">
+          </div>
+          <div class="field" style="flex:1; min-width:130px;">
+            <label for="pp-rut">RUT (opcional)</label>
+            <input type="text" id="pp-rut" placeholder="Ej: 77.111.222-3">
+          </div>
+          <div class="field" style="flex:1; min-width:160px;">
+            <label for="pp-glosa">Glosa / proyecto</label>
+            <input type="text" id="pp-glosa" placeholder="Ej: Auditoría anual">
+          </div>
+          <div class="field" style="flex:1; min-width:100px;">
+            <label for="pp-moneda">Moneda</label>
+            <select id="pp-moneda"><option>CLP</option><option>UF</option><option>USD</option><option>EUR</option></select>
+          </div>
+          <div class="field" style="flex:1; min-width:130px;">
+            <label for="pp-monto">Monto mensual</label>
+            <input type="number" id="pp-monto" min="0" step="1" placeholder="0">
+          </div>
+          <div class="field" style="flex:1; min-width:130px;">
+            <label for="pp-fecha">Fecha propuesta</label>
+            <input type="date" id="pp-fecha">
+          </div>
+          <div class="field" style="flex:2; min-width:200px;">
+            <label for="pp-notas">Notas</label>
+            <input type="text" id="pp-notas" placeholder="Ej: esperando respuesta">
+          </div>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn primary small" type="submit">Agregar propuesta</button>
+          <button class="btn ghost small" id="export-propuestas-csv-btn" type="button">⬇ Descargar (Excel/CSV)</button>
+        </div>
+      </form>
+      <div id="pipeline-resumen-montos" style="margin:14px 0; font-size:13px;"></div>
+      <div class="table-scroll" style="margin-top:14px;">
+        <table id="table-propuestas">
+          <thead>
+            <tr><th>Fecha</th><th>Cliente / prospecto</th><th>RUT</th><th>Moneda</th><th class="num">Monto mensual</th><th>Estado</th><th>Notas</th><th></th></tr>
+          </thead>
+          <tbody id="propuestas-body"></tbody>
+        </table>
+      </div>
+      <details style="margin-top:14px;">
+        <summary style="cursor:pointer; font-size:13px; color:var(--text-secondary);">+ Importar Pipeline / Rechazadas desde Excel</summary>
+        <p style="font-size:13px; color:var(--text-secondary); max-width:620px; line-height:1.6; margin-top:10px;">
+          Columnas: Razón social, RUT, Glosa (nombre del proyecto), Moneda (CLP/UF/USD/EUR), Monto mensual, Fecha,
+          Estado (Pipeline / Rechazada / Backlog), Notas — con la primera fila de encabezados. Si pones "Backlog" en
+          Estado, esa fila se carga directamente como cliente activo (o le agrega un proyecto si el cliente ya existe).
+        </p>
+        <input type="file" id="import-propuestas-file" accept=".csv,.xlsx,.xls" />
+        <textarea id="import-propuestas-paste" class="import-paste" rows="6" placeholder="O pega aquí el contenido del CSV/Excel..."></textarea>
+        <div style="margin-top:10px;">
+          <button class="btn primary small" id="import-propuestas-btn" type="button">Importar</button>
+        </div>
+        <div class="import-log" id="import-propuestas-log" hidden></div>
+      </details>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Backlog — Clientes (base para presupuesto)</h2>
+        <span class="hint" id="clientes-maestro-count">0 clientes</span>
+      </div>
+      <form class="settings-form" id="new-cliente-form" style="max-width:700px; gap:12px;">
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <div class="field" style="flex:2; min-width:180px;">
+            <label for="cl-razon">Razón social</label>
+            <input type="text" id="cl-razon" placeholder="Ej: Comercial Vargas SPA">
+          </div>
+          <div class="field" style="flex:1; min-width:130px;">
+            <label for="cl-rut">RUT</label>
+            <input type="text" id="cl-rut" placeholder="Ej: 76.111.222-3">
+          </div>
+          <div class="field" style="flex:1; min-width:160px;">
+            <label for="cl-contacto-nombre">Contacto (nombre)</label>
+            <input type="text" id="cl-contacto-nombre" placeholder="Ej: María Pérez">
+          </div>
+          <div class="field" style="flex:1; min-width:180px;">
+            <label for="cl-contacto-email">Contacto (correo)</label>
+            <input type="email" id="cl-contacto-email" placeholder="Ej: maria@cliente.cl">
+          </div>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn primary small" type="submit">Guardar cliente</button>
+          <button class="btn ghost small" id="export-clientes-maestro-csv-btn" type="button">⬇ Descargar (Excel/CSV)</button>
+        </div>
+      </form>
+      <p style="font-size:12.5px; color:var(--text-secondary); margin-top:10px;">
+        La moneda y el monto mensual se cargan por <strong>Proyecto</strong>, más abajo — un mismo cliente puede tener
+        más de uno (ej. "Auditoría anual" y "Asesoría mensual" con montos distintos).
+      </p>
+      <div class="table-scroll" style="margin-top:10px;">
+        <table id="table-clientes-maestro">
+          <thead>
+            <tr><th>Razón social</th><th>RUT</th><th>Contacto</th><th>Correo</th><th>Activo</th><th></th></tr>
+          </thead>
+          <tbody id="clientes-maestro-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Proyectos por cliente</h2>
+        <span class="hint" id="proyectos-count">0 proyectos</span>
+      </div>
+      <form class="settings-form" id="new-proyecto-form" style="max-width:820px; gap:12px;">
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <div class="field" style="flex:2; min-width:200px;">
+            <label for="py-cliente">Cliente</label>
+            <select id="py-cliente"></select>
+          </div>
+          <div class="field" style="flex:2; min-width:180px;">
+            <label for="py-glosa">Glosa / proyecto</label>
+            <input type="text" id="py-glosa" placeholder="Ej: Auditoría anual">
+          </div>
+          <div class="field" style="flex:1; min-width:100px;">
+            <label for="py-moneda">Moneda</label>
+            <select id="py-moneda"><option>CLP</option><option>UF</option><option>USD</option><option>EUR</option></select>
+          </div>
+          <div class="field" style="flex:1; min-width:130px;">
+            <label for="py-monto">Monto por cuota/mes</label>
+            <input type="number" id="py-monto" min="0" step="1" placeholder="0">
+          </div>
+          <div class="field" style="flex:1; min-width:130px;">
+            <label for="py-frecuencia">Se factura cada</label>
+            <select id="py-frecuencia">
+              <option value="1">Mes (mensual)</option>
+              <option value="2">2 meses (bimestral)</option>
+              <option value="3">3 meses (trimestral)</option>
+              <option value="6">6 meses (semestral)</option>
+              <option value="12">12 meses (anual)</option>
+            </select>
+          </div>
+          <div class="field" style="flex:1; min-width:110px;">
+            <label for="py-cuotas">N° de cuotas (opcional)</label>
+            <input type="number" id="py-cuotas" min="0" step="1" placeholder="Ej: 3">
+          </div>
+          <div class="field" style="flex:1; min-width:130px;">
+            <label for="py-montototal">Monto total (opcional)</label>
+            <input type="number" id="py-montototal" min="0" step="1" placeholder="Deja vacío si es recurrente">
+          </div>
+          <div class="field" style="flex:1; min-width:150px;">
+            <label for="py-termino">Término (opcional)</label>
+            <input type="date" id="py-termino">
+          </div>
+        </div>
+        <p style="font-size:12px; color:var(--text-secondary); margin:0;">
+          Si el proyecto se paga en cuotas cada cierto tiempo (no todos los meses), elige cada cuánto se factura acá.
+          Si además tiene un número fijo de cuotas (ej. "3 cuotas de $500.000"), pon el N° de cuotas — el
+          "Monto total" se calcula solo (cuotas × monto por cuota) y, apenas se facturen todas, el proyecto deja de
+          generarse en meses futuros. Si no tiene fin, deja las cuotas y el monto total vacíos.
+        </p>
+        <div style="display:flex; gap:8px;">
+          <button class="btn primary small" type="submit">Agregar proyecto</button>
+        </div>
+      </form>
+      <div class="table-scroll" style="margin-top:14px;">
+        <table id="table-proyectos">
+          <thead>
+            <tr><th>Cliente</th><th>Glosa</th><th>Moneda</th><th class="num">Monto</th><th>Frecuencia</th><th class="num">Cuotas</th><th class="num">Monto total</th><th class="num">Saldo</th><th>Término</th><th>Activo</th><th></th></tr>
+          </thead>
+          <tbody id="proyectos-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Presupuesto mensual</h2>
+        <span class="hint">arma el mes, ajusta montos si hace falta y genera la factura real en CLP</span>
+      </div>
+      <div class="panel-toolbar" style="margin-bottom:10px;">
+        <select id="presupuesto-anio"></select>
+        <select id="presupuesto-mes">
+          <option value="1">Enero</option><option value="2">Febrero</option><option value="3">Marzo</option>
+          <option value="4">Abril</option><option value="5">Mayo</option><option value="6">Junio</option>
+          <option value="7">Julio</option><option value="8">Agosto</option><option value="9">Septiembre</option>
+          <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
+        </select>
+        <button class="btn ghost small" id="presupuesto-agregar-recurrentes-btn" type="button">+ Agregar proyectos vigentes de este mes</button>
+        <button class="btn ghost small" id="export-presupuesto-csv-btn" type="button">⬇ Descargar (Excel/CSV)</button>
+      </div>
+      <details style="margin-bottom:10px;">
+        <summary style="cursor:pointer; font-size:13px; color:var(--text-secondary);">+ Agregar línea manual (cliente puntual de este mes)</summary>
+        <form class="settings-form" id="new-linea-presupuesto-form" style="max-width:820px; gap:12px; margin-top:10px;">
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <div class="field" style="flex:2; min-width:180px;">
+              <label for="lp-razon">Cliente</label>
+              <input type="text" id="lp-razon" placeholder="Razón social">
+            </div>
+            <div class="field" style="flex:1; min-width:130px;">
+              <label for="lp-rut">RUT</label>
+              <input type="text" id="lp-rut" placeholder="RUT">
+            </div>
+            <div class="field" style="flex:2; min-width:160px;">
+              <label for="lp-glosa">Glosa (opcional)</label>
+              <input type="text" id="lp-glosa" placeholder="Ej: Trabajo puntual septiembre">
+            </div>
+            <div class="field" style="flex:1; min-width:100px;">
+              <label for="lp-moneda">Moneda</label>
+              <select id="lp-moneda"><option>CLP</option><option>UF</option><option>USD</option><option>EUR</option></select>
+            </div>
+            <div class="field" style="flex:1; min-width:130px;">
+              <label for="lp-monto">Monto</label>
+              <input type="number" id="lp-monto" min="0" step="1" placeholder="0">
+            </div>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button class="btn primary small" type="submit">Agregar línea</button>
+          </div>
+        </form>
+      </details>
+      <div id="presupuesto-resumen-pendiente" style="display:flex; gap:24px; flex-wrap:wrap; font-size:13.5px; margin-bottom:12px;"></div>
+      <p id="presupuesto-facturado-hint" style="display:none; font-size:12.5px; color:var(--text-secondary); margin-bottom:10px;">
+        💡 Cuando cargues una de estas facturas directamente en el SII, vuelve aquí y presiona
+        <strong>"Ya facturado (folio SII)"</strong> ingresando el folio real — así pasa a Facturas y Cobranza sin
+        duplicar folios. Si prefieres que el programa numere la factura por ti, usa "Generar factura".
+      </p>
+      <div class="table-scroll">
+        <table id="table-presupuesto">
+          <thead>
+            <tr><th>Cliente</th><th>Glosa</th><th>RUT</th><th>Moneda</th><th class="num">Monto</th><th class="num">Tasa</th><th class="num">Total CLP estimado</th><th>Estado</th><th></th></tr>
+          </thead>
+          <tbody id="presupuesto-body"></tbody>
+          <tfoot id="presupuesto-totals"></tfoot>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Presupuestado vs. facturado real</h2>
+        <span class="hint">por cliente, en lo que va del año elegido arriba en Presupuesto mensual</span>
+      </div>
+      <div class="table-scroll">
+        <table id="table-presupuesto-vs-real">
+          <thead>
+            <tr><th>Cliente</th><th class="num">Presupuestado</th><th class="num">Real</th><th class="num">Dif.</th></tr>
+          </thead>
+          <tbody id="presupuesto-vs-real-body"></tbody>
+          <tfoot id="presupuesto-vs-real-total"></tfoot>
+        </table>
+      </div>
+      <div style="overflow-x:auto; position:relative; margin-top:16px;">
+        <svg id="chart-presupuesto-mensual" viewBox="0 0 760 260" role="img" aria-label="Presupuestado vs. facturado real por mes" style="display:block; min-width:460px; width:100%; height:auto;"></svg>
+      </div>
+      <div style="display:flex; gap:16px; font-size:12.5px; color:var(--text-secondary); margin-top:6px;">
+        <span><span style="display:inline-block; width:10px; height:10px; border-radius:2px; background:var(--accent); margin-right:5px;"></span>Presupuestado</span>
+        <span><span style="display:inline-block; width:10px; height:10px; border-radius:2px; background:var(--good); margin-right:5px;"></span>Facturado real</span>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Proyección anual</h2>
+        <span class="hint">si nada cambia, esto deberías facturar en los próximos 12 meses</span>
+      </div>
+      <div id="proyeccion-anual-body" style="font-size:14px; line-height:1.8;"></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h2>Importar clientes desde Excel</h2></div>
+      <p style="font-size:13px; color:var(--text-secondary); max-width:620px; line-height:1.6;">
+        Pega el contenido de tu planilla (o súbela) con columnas: Razón social, RUT, Contacto, Correo — con la
+        primera fila de encabezados. Los proyectos (moneda y monto) se agregan aparte, arriba.
+      </p>
+      <input type="file" id="import-clientes-file" accept=".csv,.xlsx,.xls" />
+      <textarea id="import-clientes-paste" class="import-paste" rows="6" placeholder="O pega aquí el contenido del CSV/Excel..."></textarea>
+      <div style="margin-top:10px;">
+        <button class="btn primary small" id="import-clientes-btn" type="button">Importar</button>
+      </div>
+      <div class="import-log" id="import-clientes-log" hidden></div>
     </section>
   </section>
 
@@ -1541,6 +1871,38 @@
       </form>
     </section>
     <section class="panel">
+      <div class="panel-head"><h2>Plantillas de correo (predeterminadas)</h2></div>
+      <p style="font-size:13px; color:var(--text-secondary); max-width:660px; line-height:1.6;">
+        Deja acá el texto que quieres que traiga cada correo por defecto. Nunca se manda solo — siempre hace falta
+        apretar "Enviar cobranza" o "Enviar factura" a mano; esto solo predefine el asunto y el cuerpo.
+        Puedes usar estos campos entre llaves, que se reemplazan al enviar:<br>
+        Cobranza: <code>{cliente} {saldo} {detalle} {empresa}</code><br>
+        Factura: <code>{cliente} {folio} {emision} {vencimiento} {monto} {concepto} {empresa}</code>
+      </p>
+      <form class="settings-form" id="plantillas-form" style="margin-top:10px; max-width:700px;">
+        <div class="field">
+          <label for="pl-cobranza-asunto">Asunto — Cobranza</label>
+          <input type="text" id="pl-cobranza-asunto">
+        </div>
+        <div class="field">
+          <label for="pl-cobranza-cuerpo">Cuerpo — Cobranza</label>
+          <textarea id="pl-cobranza-cuerpo" rows="6" style="width:100%; font-family:inherit;"></textarea>
+        </div>
+        <div class="field">
+          <label for="pl-factura-asunto">Asunto — Factura</label>
+          <input type="text" id="pl-factura-asunto">
+        </div>
+        <div class="field">
+          <label for="pl-factura-cuerpo">Cuerpo — Factura</label>
+          <textarea id="pl-factura-cuerpo" rows="6" style="width:100%; font-family:inherit;"></textarea>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn primary" type="submit">Guardar plantillas</button>
+          <button class="btn ghost" type="button" id="pl-restaurar-btn">Restaurar predeterminadas</button>
+        </div>
+      </form>
+    </section>
+    <section class="panel">
       <div class="panel-head"><h2>Importar Libro de Ventas (RCV)</h2></div>
       <p style="font-size:13px; color:var(--text-secondary); max-width:620px; line-height:1.6;">
         Sube aquí el archivo CSV del Libro de Ventas (RCV) que descargas del SII. El dashboard va a leer las
@@ -1760,6 +2122,51 @@
     return !!(c && c.service && c.template && c.publicKey && window.emailjs);
   }
 
+  // Plantillas predeterminadas de correo — dejan el asunto y cuerpo
+  // prellenados con tu propio texto, pero SIEMPRE hay que apretar el botón
+  // "Enviar cobranza"/"Enviar factura" a mano; nada se manda solo. Los
+  // {placeholders} se reemplazan al momento de enviar.
+  var PLANTILLAS_KEY = "dmz-cobranza-plantillas-v1";
+  function plantillasPorDefecto(){
+    return {
+      cobranzaAsunto: EMPRESA_NOMBRE + " · Recordatorio de cobranza · {cliente}",
+      cobranzaCuerpo:
+        "Estimados {cliente},\n\n" +
+        "Junto con saludar, les escribimos de " + EMPRESA_NOMBRE + " para recordarles el estado de cobranza de su cuenta.\n\n" +
+        "Documentos pendientes de pago (saldo total {saldo}):\n{detalle}\n\n" +
+        "Agradecemos regularizar el pago a la brevedad, o contactarnos si ya fue realizado para actualizar nuestros registros.\n\n" +
+        "Saludos cordiales,\n" + EMPRESA_NOMBRE,
+      facturaAsunto: EMPRESA_NOMBRE + " · Factura folio {folio} · {cliente}",
+      facturaCuerpo:
+        "Estimados {cliente},\n\n" +
+        "Junto con saludar, les enviamos el detalle de la factura emitida por " + EMPRESA_NOMBRE + ":\n\n" +
+        "- Folio: {folio}\n" +
+        "- Fecha de emisión: {emision}\n" +
+        "- Fecha de vencimiento: {vencimiento}\n" +
+        "- Monto total: {monto}\n" +
+        "{concepto}" +
+        "\nQuedamos atentos a cualquier consulta.\n\n" +
+        "Saludos cordiales,\n" + EMPRESA_NOMBRE
+    };
+  }
+  function loadPlantillasEmail(){
+    var def = plantillasPorDefecto();
+    try {
+      var raw = localStorage.getItem(PLANTILLAS_KEY);
+      if (raw) return Object.assign({}, def, JSON.parse(raw));
+    } catch(e){ /* fall back to defaults */ }
+    return def;
+  }
+  function savePlantillasEmailStore(){
+    try { localStorage.setItem(PLANTILLAS_KEY, JSON.stringify(state.plantillasEmail)); }
+    catch(e){ /* storage unavailable */ }
+  }
+  function aplicarPlantilla(texto, datos){
+    return String(texto || "").replace(/\{(\w+)\}/g, function(m, key){
+      return Object.prototype.hasOwnProperty.call(datos, key) ? datos[key] : m;
+    });
+  }
+
   function loadEmailHistory(){
     try {
       var raw = localStorage.getItem(EMAIL_HISTORY_KEY);
@@ -1863,6 +2270,657 @@
     autoPublicarCambioCompartido();
     showToast("Costo eliminado.");
   }
+
+  // ===================== Presupuesto: clientes, propuestas, tipo de cambio =====================
+  // Todo lo de esta sección vive en su propia estructura (no toca facturas/
+  // cobranza directamente) — solo "Generar factura" empuja una línea de
+  // presupuesto hacia state.invoices, igual que agregar una factura manual.
+  var TASAS_KEY = "dmz-cobranza-tasas-v1";
+  var CLIENTES_MAESTRO_KEY = "dmz-cobranza-clientes-v1";
+  var PROYECTOS_KEY = "dmz-cobranza-proyectos-v1";
+  var PROPUESTAS_KEY = "dmz-cobranza-propuestas-v1";
+  var PRESUPUESTO_KEY = "dmz-cobranza-presupuesto-v1";
+
+  function loadTasas(){
+    try {
+      var raw = localStorage.getItem(TASAS_KEY);
+      if (raw) return JSON.parse(raw) || null;
+    } catch(e) { /* fall back */ }
+    return null;
+  }
+  function saveTasasStore(){
+    try { localStorage.setItem(TASAS_KEY, JSON.stringify(state.tasasCambio)); }
+    catch(e) { /* storage unavailable */ }
+  }
+  function loadClientesMaestro(){
+    try {
+      var raw = localStorage.getItem(CLIENTES_MAESTRO_KEY);
+      if (raw) return JSON.parse(raw) || [];
+    } catch(e) { /* fall back */ }
+    return [];
+  }
+  function saveClientesMaestroStore(){
+    try { localStorage.setItem(CLIENTES_MAESTRO_KEY, JSON.stringify(state.clientesMaestro)); }
+    catch(e) { /* storage unavailable */ }
+  }
+  function loadProyectos(){
+    try {
+      var raw = localStorage.getItem(PROYECTOS_KEY);
+      if (raw) return JSON.parse(raw) || [];
+    } catch(e) { /* fall back */ }
+    return [];
+  }
+  function saveProyectosStore(){
+    try { localStorage.setItem(PROYECTOS_KEY, JSON.stringify(state.proyectos)); }
+    catch(e) { /* storage unavailable */ }
+  }
+  function loadPropuestas(){
+    try {
+      var raw = localStorage.getItem(PROPUESTAS_KEY);
+      if (raw) return JSON.parse(raw) || [];
+    } catch(e) { /* fall back */ }
+    return [];
+  }
+  function savePropuestasStore(){
+    try { localStorage.setItem(PROPUESTAS_KEY, JSON.stringify(state.propuestas)); }
+    catch(e) { /* storage unavailable */ }
+  }
+  function loadPresupuesto(){
+    try {
+      var raw = localStorage.getItem(PRESUPUESTO_KEY);
+      if (raw) return JSON.parse(raw) || [];
+    } catch(e) { /* fall back */ }
+    return [];
+  }
+  function savePresupuestoStore(){
+    try { localStorage.setItem(PRESUPUESTO_KEY, JSON.stringify(state.presupuesto)); }
+    catch(e) { /* storage unavailable */ }
+  }
+
+  var MONEDAS = ["CLP", "UF", "USD", "EUR"];
+  var EMPRESA_NOMBRE = "DMZ Tax Advisors";
+  function tasaDeMoneda(moneda){
+    if (moneda === "CLP") return 1;
+    var t = state.tasasCambio || {};
+    if (moneda === "UF") return Number(t.uf) || 0;
+    if (moneda === "USD") return Number(t.usd) || 0;
+    if (moneda === "EUR") return Number(t.eur) || 0;
+    return 0;
+  }
+  // Convierte un monto en su moneda original a CLP con la tasa vigente
+  // (la que está cargada ahora en state.tasasCambio — al facturar, esa es la
+  // que se deja fija dentro de la factura, tal como pide Freddy: "dejar la
+  // conversión para cada moneda a la fecha de facturación").
+  function montoCLP(monto, moneda){
+    if (moneda === "CLP" || !moneda) return Math.round(Number(monto) || 0);
+    return Math.round((Number(monto) || 0) * tasaDeMoneda(moneda));
+  }
+  // El "presupuestado" de una línea ya facturada no debe seguir moviéndose
+  // cada vez que cambia el tipo de cambio de hoy: se congela con el total real
+  // de la factura que ya se generó (que a su vez quedó fijo con la tasa del
+  // día en que se facturó). Solo las líneas todavía pendientes usan la tasa
+  // vigente, porque ahí sí es una estimación en curso.
+  function montoPresupuestadoDe(l){
+    if (l.generada && l.folio){
+      var f = (state.invoices || []).find(function(x){ return String(x.folio) === String(l.folio); });
+      if (f) return facturadoDe(f);
+    }
+    return montoCLP(l.monto, l.moneda);
+  }
+  // Cuánto queda pendiente de facturar en un mes puntual: suma las líneas de
+  // presupuesto de ese año/mes que todavía no se han facturado (en CLP, a la
+  // tasa vigente — es una estimación, se va afinando a medida que se factura).
+  function pendienteDeFacturarMes(anio, mes){
+    return (state.presupuesto || [])
+      .filter(function(l){ return l.anio === anio && l.mes === mes && !l.generada; })
+      .reduce(function(s,l){ return s + montoCLP(l.monto, l.moneda); }, 0);
+  }
+  // Cuánto queda pendiente de facturar desde el mes indicado hasta diciembre
+  // de ese año: para los meses que ya tienen líneas armadas, suma lo
+  // pendiente real; para los meses futuros que todavía no se han armado,
+  // proyecta con los proyectos vigentes que correspondería facturar ese mes
+  // (respetando su frecuencia — mensual, trimestral, etc.).
+  function pendienteDeFacturarHastaDiciembre(anio, desdeMes){
+    var total = 0;
+    for (var mes = desdeMes; mes <= 12; mes++){
+      var lineasDelMes = (state.presupuesto || []).filter(function(l){ return l.anio === anio && l.mes === mes; });
+      total += lineasDelMes.filter(function(l){ return !l.generada; })
+        .reduce(function(s,l){ return s + montoCLP(l.monto, l.moneda); }, 0);
+      var proyectosConLinea = {};
+      lineasDelMes.forEach(function(l){ if (l.proyectoId) proyectosConLinea[l.proyectoId] = true; });
+      (state.proyectos || []).filter(proyectoVigente).forEach(function(pr){
+        if (proyectosConLinea[pr.id]) return; // ya tiene línea armada este mes, no proyectar de nuevo
+        var cliente = (state.clientesMaestro || []).find(function(c){ return c.id === pr.clienteId; });
+        if (!cliente || !cliente.activo) return;
+        if (!proyectoFacturableEnMes(pr, anio, mes)) return;
+        total += montoCLP(pr.montoMensual, pr.moneda);
+      });
+    }
+    return total;
+  }
+
+  // Trae UF/USD/EUR del día desde la API pública de mindicador.cl (la misma
+  // que usa el SII). Si falla (sin internet, API caída), avisa y deja los
+  // valores que ya había — nunca los borra ni los deja en 0 silenciosamente.
+  async function fetchTasasCambio(){
+    try {
+      var resp = await fetch("https://mindicador.cl/api");
+      if (!resp.ok) throw new Error("HTTP " + resp.status);
+      var data = await resp.json();
+      state.tasasCambio = {
+        fecha: (data.uf && data.uf.fecha) ? data.uf.fecha.slice(0,10) : new Date().toISOString().slice(0,10),
+        uf: data.uf ? Math.round(data.uf.valor * 100) / 100 : tasaDeMoneda("UF"),
+        usd: data.dolar ? Math.round(data.dolar.valor * 100) / 100 : tasaDeMoneda("USD"),
+        eur: data.euro ? Math.round(data.euro.valor * 100) / 100 : tasaDeMoneda("EUR"),
+        origen: "auto"
+      };
+      saveTasasStore();
+      renderTasas();
+      autoPublicarCambioCompartido();
+      showToast("Tipo de cambio actualizado: UF " + fmtCLP(state.tasasCambio.uf) + ", USD " + fmtCLP(state.tasasCambio.usd) + ", EUR " + fmtCLP(state.tasasCambio.eur) + ".");
+      return true;
+    } catch(e){
+      showToast("No se pudo obtener el tipo de cambio automático (¿sin internet?). Puedes ingresarlo manualmente abajo.", { error: true });
+      return false;
+    }
+  }
+  function guardarTasasManual(data){
+    state.tasasCambio = {
+      fecha: data.fecha || new Date().toISOString().slice(0,10),
+      uf: Number(data.uf) || 0,
+      usd: Number(data.usd) || 0,
+      eur: Number(data.eur) || 0,
+      origen: "manual"
+    };
+    saveTasasStore();
+    renderAll();
+    autoPublicarCambioCompartido();
+    showToast("Tipo de cambio guardado manualmente.");
+  }
+
+  // ---------- Clientes (maestro) ----------
+  var clienteSeq = 1;
+  function addCliente(data){
+    var razon = (data.razonSocial || "").trim();
+    var rut = (data.rut || "").trim();
+    if (!razon){
+      showToast("Completa al menos la razón social del cliente.");
+      return false;
+    }
+    // razonSocial + rut identifican al cliente; moneda/monto ahora viven en
+    // sus Proyectos (un mismo cliente puede tener 2+ proyectos con glosas,
+    // monedas y montos distintos).
+    var cliente = {
+      id: "cl" + (clienteSeq++) + "-" + Date.now(),
+      razonSocial: razon,
+      rut: rut,
+      contactoNombre: (data.contactoNombre || "").trim(),
+      contactoEmail: (data.contactoEmail || "").trim(),
+      activo: data.activo !== false
+    };
+    state.clientesMaestro.push(cliente);
+    saveClientesMaestroStore();
+    // Si venía con moneda/monto (ej. al convertir una propuesta), se crea de
+    // una vez su primer proyecto para no dejarlo sin presupuesto.
+    if (Number(data.montoMensual) > 0){
+      addProyecto({ clienteId: cliente.id, glosa: data.glosa || "General", moneda: data.moneda, montoMensual: data.montoMensual, activo: true }, true);
+    }
+    renderAll();
+    autoPublicarCambioCompartido();
+    showToast("Cliente agregado: " + razon + ".");
+    return true;
+  }
+  function updateCliente(id, data){
+    var c = state.clientesMaestro.find(function(x){ return x.id === id; });
+    if (!c) return;
+    if (data.razonSocial !== undefined) c.razonSocial = String(data.razonSocial).trim();
+    if (data.rut !== undefined) c.rut = String(data.rut).trim();
+    if (data.contactoNombre !== undefined) c.contactoNombre = String(data.contactoNombre).trim();
+    if (data.contactoEmail !== undefined) c.contactoEmail = String(data.contactoEmail).trim();
+    if (data.activo !== undefined) c.activo = !!data.activo;
+    saveClientesMaestroStore();
+    // Un solo correo por cliente: si se edita acá, también se refleja en la
+    // caché rápida por RUT que usa "Enviar cobranza" en Clientes.
+    if (data.contactoEmail !== undefined && c.rut){
+      var key = contactKey(c.rut);
+      if (c.contactoEmail) state.contacts[key] = c.contactoEmail;
+      else delete state.contacts[key];
+      saveContacts();
+    }
+    renderAll();
+    autoPublicarCambioCompartido();
+  }
+  function deleteCliente(id){
+    state.clientesMaestro = state.clientesMaestro.filter(function(c){ return c.id !== id; });
+    state.proyectos = (state.proyectos || []).filter(function(pr){ return pr.clienteId !== id; });
+    saveClientesMaestroStore();
+    saveProyectosStore();
+    renderAll();
+    autoPublicarCambioCompartido();
+    showToast("Cliente eliminado (y sus proyectos).");
+  }
+
+  // ---------- Proyectos (uno o más por cliente, cada uno con su glosa) ----------
+  var proyectoSeq = 1;
+  function addProyecto(data, silencioso){
+    var clienteId = data.clienteId;
+    var cliente = (state.clientesMaestro || []).find(function(c){ return c.id === clienteId; });
+    var monto = Number(data.montoMensual);
+    if (!cliente || !isFinite(monto) || monto <= 0){
+      if (!silencioso) showToast("Elige un cliente y un monto mensual mayor a 0 para el proyecto.");
+      return false;
+    }
+    var proyecto = {
+      id: "py" + (proyectoSeq++) + "-" + Date.now(),
+      clienteId: clienteId,
+      glosa: (data.glosa || "General").trim() || "General",
+      moneda: MONEDAS.indexOf(data.moneda) >= 0 ? data.moneda : "CLP",
+      montoMensual: Math.round(monto),
+      // Número de cuotas opcional (ej. 3 cuotas de $500.000): si se indica,
+      // el monto total se calcula solo (cuotas × monto por cuota) y manda por
+      // sobre un "Monto total" escrito a mano. Si se deja vacío, se puede
+      // igual escribir un monto total directo, o dejar ambos vacíos para que
+      // el proyecto sea recurrente indefinido.
+      cuotas: Math.round(Math.max(0, Number(data.cuotas) || 0)),
+      // Monto total opcional: para proyectos con presupuesto cerrado (no
+      // recurrente indefinido) — a medida que se factura, el saldo baja, y
+      // cuando llega a 0 el proyecto deja de generarse en meses futuros. Si
+      // queda en 0/vacío, el proyecto sigue como recurrente mensual normal.
+      montoTotal: Number(data.cuotas) > 0
+        ? Math.round(Number(data.cuotas) * monto)
+        : Math.round(Math.max(0, Number(data.montoTotal) || 0)),
+      // Cada cuántos meses se factura (1 = mensual, el default de siempre; 2 =
+      // bimestral, 3 = trimestral, 6 = semestral, 12 = anual). El "ancla" es
+      // el año/mes en que se crea el proyecto — desde ahí se cuenta cada N
+      // meses, para no tener que crear un proyecto nuevo cada vez que toca
+      // facturar algo que no es mensual.
+      frecuenciaMeses: [1,2,3,6,12].indexOf(Number(data.frecuenciaMeses)) >= 0 ? Number(data.frecuenciaMeses) : 1,
+      anioInicio: data.anioInicio || new Date().getFullYear(),
+      mesInicio: data.mesInicio || (new Date().getMonth() + 1),
+      fechaTermino: data.fechaTermino || "",
+      activo: data.activo !== false
+    };
+    state.proyectos.push(proyecto);
+    saveProyectosStore();
+    if (!silencioso){
+      renderAll();
+      autoPublicarCambioCompartido();
+      showToast("Proyecto agregado a " + cliente.razonSocial + ": " + proyecto.glosa + ".");
+    }
+    return true;
+  }
+  function updateProyecto(id, data){
+    var pr = (state.proyectos || []).find(function(x){ return x.id === id; });
+    if (!pr) return;
+    if (data.glosa !== undefined) pr.glosa = String(data.glosa).trim() || "General";
+    if (data.moneda !== undefined && MONEDAS.indexOf(data.moneda) >= 0) pr.moneda = data.moneda;
+    if (data.montoMensual !== undefined){
+      pr.montoMensual = Math.round(Number(data.montoMensual) || 0);
+      if (pr.cuotas > 0) pr.montoTotal = Math.round(pr.cuotas * pr.montoMensual);
+    }
+    if (data.cuotas !== undefined){
+      pr.cuotas = Math.round(Math.max(0, Number(data.cuotas) || 0));
+      if (pr.cuotas > 0) pr.montoTotal = Math.round(pr.cuotas * pr.montoMensual);
+    }
+    if (data.montoTotal !== undefined && !(pr.cuotas > 0)){
+      pr.montoTotal = Math.round(Math.max(0, Number(data.montoTotal) || 0));
+    }
+    if (data.frecuenciaMeses !== undefined){
+      var fm = Number(data.frecuenciaMeses);
+      pr.frecuenciaMeses = [1,2,3,6,12].indexOf(fm) >= 0 ? fm : 1;
+    }
+    if (data.fechaTermino !== undefined) pr.fechaTermino = data.fechaTermino;
+    if (data.activo !== undefined) pr.activo = !!data.activo;
+    saveProyectosStore();
+    renderAll();
+    autoPublicarCambioCompartido();
+  }
+  function deleteProyecto(id){
+    state.proyectos = (state.proyectos || []).filter(function(pr){ return pr.id !== id; });
+    saveProyectosStore();
+    renderAll();
+    autoPublicarCambioCompartido();
+    showToast("Proyecto eliminado.");
+  }
+  // Un proyecto vigente es el que está activo Y no pasó su fecha de término
+  // (si no tiene fecha, se entiende indefinido) Y, si tiene un monto total
+  // (presupuesto cerrado), todavía le queda saldo por facturar.
+  function proyectoVigente(pr){
+    if (!pr.activo) return false;
+    if (pr.fechaTermino && pr.fechaTermino < new Date().toISOString().slice(0,10)) return false;
+    if (Number(pr.montoTotal) > 0 && saldoProyecto(pr) <= 0) return false;
+    return true;
+  }
+  // Suma lo ya facturado (líneas de presupuesto generadas) de este proyecto,
+  // en su propia moneda — para comparar contra su montoTotal, si tiene.
+  function facturadoAcumuladoProyecto(pr){
+    return (state.presupuesto || [])
+      .filter(function(l){ return l.proyectoId === pr.id && l.generada; })
+      .reduce(function(s,l){ return s + (Number(l.monto) || 0); }, 0);
+  }
+  // null si el proyecto es recurrente indefinido (sin monto total); si tiene
+  // monto total, el saldo que le queda por facturar (puede llegar a 0 o menos
+  // si se facturó de más).
+  function saldoProyecto(pr){
+    if (!(Number(pr.montoTotal) > 0)) return null;
+    return Math.round(pr.montoTotal - facturadoAcumuladoProyecto(pr));
+  }
+  // Para proyectos no mensuales (bimestral, trimestral, semestral, anual):
+  // ¿corresponde facturar este año/mes según su frecuencia, contando desde
+  // el mes en que se creó el proyecto (su "ancla")?
+  function proyectoFacturableEnMes(pr, anio, mes){
+    var freq = Number(pr.frecuenciaMeses) || 1;
+    if (freq <= 1) return true;
+    var ancla = (Number(pr.anioInicio) || anio) * 12 + (Number(pr.mesInicio) || mes);
+    var objetivo = anio * 12 + mes;
+    var diff = objetivo - ancla;
+    return diff >= 0 && diff % freq === 0;
+  }
+
+  // ---------- Propuestas comerciales (ganadas o no) ----------
+  var propuestaSeq = 1;
+  function addPropuesta(data){
+    var razon = (data.razonSocial || "").trim();
+    if (!razon){
+      showToast("Completa al menos la razón social o nombre del prospecto.");
+      return false;
+    }
+    var propuesta = {
+      id: "pr" + (propuestaSeq++) + "-" + Date.now(),
+      razonSocial: razon,
+      rut: (data.rut || "").trim(),
+      glosa: (data.glosa || "").trim(),
+      moneda: MONEDAS.indexOf(data.moneda) >= 0 ? data.moneda : "CLP",
+      montoMensual: Math.round(Number(data.montoMensual) || 0),
+      fecha: data.fecha || new Date().toISOString().slice(0,10),
+      estado: "pendiente",
+      notas: (data.notas || "").trim(),
+      motivoRechazo: ""
+    };
+    state.propuestas.push(propuesta);
+    savePropuestasStore();
+    renderAll();
+    autoPublicarCambioCompartido();
+    showToast("Propuesta agregada: " + razon + ".");
+    return true;
+  }
+  function updatePropuestaEstado(id, estado, motivoRechazo){
+    var p = state.propuestas.find(function(x){ return x.id === id; });
+    if (!p) return;
+    p.estado = estado;
+    if (estado === "perdida") p.motivoRechazo = (motivoRechazo || "").trim();
+    savePropuestasStore();
+    renderAll();
+    autoPublicarCambioCompartido();
+  }
+  function deletePropuesta(id){
+    state.propuestas = state.propuestas.filter(function(p){ return p.id !== id; });
+    savePropuestasStore();
+    renderAll();
+    autoPublicarCambioCompartido();
+    showToast("Propuesta eliminada.");
+  }
+  // Una propuesta "ganada" pasa a ser cliente de verdad, con un proyecto ya
+  // cargado con su monto — así entra directo al presupuesto sin retipear
+  // nada. Si el cliente (mismo RUT, o misma razón social si no hay RUT) ya
+  // existía, NO se duplica: se le agrega este como un proyecto más — así un
+  // mismo cliente puede terminar con dos o más proyectos con glosas distintas.
+  function buscarClienteExistente(razonSocial, rut){
+    var rutNorm = normRUT(rut);
+    return (state.clientesMaestro || []).find(function(c){
+      if (rutNorm) return normRUT(c.rut) === rutNorm;
+      return c.razonSocial.trim().toLowerCase() === razonSocial.trim().toLowerCase();
+    });
+  }
+  function convertirPropuestaEnCliente(id){
+    var p = state.propuestas.find(function(x){ return x.id === id; });
+    if (!p) return;
+    p.estado = "ganada";
+    savePropuestasStore();
+    var existente = buscarClienteExistente(p.razonSocial, p.rut);
+    if (existente){
+      if (p.rut && !existente.rut) updateCliente(existente.id, { rut: p.rut });
+      addProyecto({ clienteId: existente.id, glosa: p.glosa || "General", moneda: p.moneda, montoMensual: p.montoMensual, activo: true });
+      showToast(p.razonSocial + ": proyecto nuevo agregado a su ficha de cliente existente.");
+      return;
+    }
+    var ok = addCliente({
+      razonSocial: p.razonSocial,
+      rut: p.rut,
+      moneda: p.moneda,
+      montoMensual: p.montoMensual,
+      glosa: p.glosa,
+      activo: true
+    });
+    if (ok){
+      showToast(p.razonSocial + " convertida en cliente activo." + (p.rut ? "" : " Recuerda completarle el RUT antes de generar su factura."));
+    } else {
+      renderAll();
+    }
+  }
+
+  // ---------- Presupuesto mensual ----------
+  // "Materializa" (crea si falta) la línea de presupuesto de cada proyecto
+  // vigente (cliente activo, proyecto activo y sin fecha de término vencida)
+  // para el mes pedido — no pisa una línea que el usuario ya haya editado a
+  // mano ese mes. Un mismo cliente puede aportar varias líneas (una por
+  // proyecto), cada una con su propia glosa.
+  var presupuestoSeq = 1;
+  function materializarPresupuestoMes(anio, mes){
+    (state.proyectos || []).filter(proyectoVigente).forEach(function(pr){
+      var cliente = (state.clientesMaestro || []).find(function(c){ return c.id === pr.clienteId; });
+      if (!cliente || !cliente.activo) return;
+      if (!proyectoFacturableEnMes(pr, anio, mes)) return;
+      var existe = (state.presupuesto || []).some(function(l){
+        return l.proyectoId === pr.id && l.anio === anio && l.mes === mes;
+      });
+      if (!existe){
+        state.presupuesto.push({
+          id: "pp" + (presupuestoSeq++) + "-" + Date.now() + "-" + pr.id,
+          clienteId: cliente.id,
+          proyectoId: pr.id,
+          razonSocial: cliente.razonSocial,
+          rut: cliente.rut,
+          glosa: pr.glosa,
+          anio: anio,
+          mes: mes,
+          monto: pr.montoMensual,
+          moneda: pr.moneda,
+          manual: false,
+          generada: false,
+          folio: null
+        });
+      }
+    });
+  }
+  function addLineaPresupuestoManual(data){
+    var razon = (data.razonSocial || "").trim();
+    var monto = Number(data.monto);
+    if (!razon || !isFinite(monto) || monto <= 0){
+      showToast("Completa cliente y un monto mayor a 0 para la línea de presupuesto.");
+      return false;
+    }
+    state.presupuesto.push({
+      id: "pp" + (presupuestoSeq++) + "-" + Date.now(),
+      clienteId: data.clienteId || null,
+      proyectoId: null,
+      razonSocial: razon,
+      rut: (data.rut || "").trim(),
+      glosa: (data.glosa || "").trim(),
+      anio: Number(data.anio),
+      mes: Number(data.mes),
+      monto: Math.round(monto),
+      moneda: MONEDAS.indexOf(data.moneda) >= 0 ? data.moneda : "CLP",
+      manual: true,
+      generada: false,
+      folio: null
+    });
+    savePresupuestoStore();
+    renderAll();
+    autoPublicarCambioCompartido();
+    showToast("Línea de presupuesto agregada para " + razon + ".");
+    return true;
+  }
+  function updateLineaPresupuesto(id, monto){
+    var l = (state.presupuesto || []).find(function(x){ return x.id === id; });
+    if (!l || l.generada) return;
+    l.monto = Math.round(Number(monto) || 0);
+    l.manual = true;
+    savePresupuestoStore();
+    renderAll();
+    autoPublicarCambioCompartido();
+  }
+  function deleteLineaPresupuesto(id){
+    state.presupuesto = (state.presupuesto || []).filter(function(l){ return l.id !== id; });
+    savePresupuestoStore();
+    renderAll();
+    autoPublicarCambioCompartido();
+    showToast("Línea de presupuesto eliminada.");
+  }
+  // Para cuando un mes puntual no se termina facturando (el cliente pidió
+  // esperar, etc.) — en vez de perderla, la empuja al mes siguiente en lugar
+  // de tener que eliminarla y crear una línea manual nueva después.
+  function postergarLineaPresupuesto(id){
+    var l = (state.presupuesto || []).find(function(x){ return x.id === id; });
+    if (!l || l.generada) return false;
+    l.mes += 1;
+    if (l.mes > 12){ l.mes = 1; l.anio += 1; }
+    savePresupuestoStore();
+    renderAll();
+    autoPublicarCambioCompartido();
+    showToast(l.razonSocial + ": postergada a " + MESES_LARGO[l.mes - 1] + " " + l.anio + ".");
+    return true;
+  }
+  // Cuántos días de antigüedad tiene la tasa cargada — para avisar si está
+  // vieja antes de dejarla fija en una factura nueva.
+  function diasTasaCambio(){
+    var t = state.tasasCambio || {};
+    if (!t.fecha) return Infinity;
+    return Math.floor((Date.now() - new Date(t.fecha + "T00:00:00").getTime()) / 86400000);
+  }
+  // Convierte una línea de presupuesto en una factura real de verdad, en
+  // CLP (como salen todas las facturas en Chile), usando la tasa de cambio
+  // vigente en state.tasasCambio al momento de generarla — por eso conviene
+  // actualizar el tipo de cambio del día antes de generar. `forzar` se usa
+  // cuando el usuario ya confirmó generar igual con una tasa desactualizada.
+  function generarFacturaDesdePresupuesto(id, forzar){
+    var l = (state.presupuesto || []).find(function(x){ return x.id === id; });
+    if (!l || l.generada) return false;
+    // Si el RUT se completó después en Clientes (ej. tras convertir una
+    // propuesta sin RUT), se toma de ahí aunque la línea se haya creado antes.
+    if (!l.rut && l.clienteId){
+      var clienteActual = (state.clientesMaestro || []).find(function(c){ return c.id === l.clienteId; });
+      if (clienteActual && clienteActual.rut) l.rut = clienteActual.rut;
+    }
+    if (!l.rut){
+      showToast("A " + l.razonSocial + " le falta el RUT — complétalo en Clientes antes de generar la factura.", { error: true });
+      return false;
+    }
+    if (l.moneda !== "CLP" && tasaDeMoneda(l.moneda) <= 0){
+      showToast("No hay tipo de cambio cargado para " + l.moneda + " — actualízalo arriba antes de generar la factura.", { error: true });
+      return false;
+    }
+    if (l.moneda !== "CLP" && !forzar && diasTasaCambio() > 5){
+      var dias = diasTasaCambio();
+      if (!confirm("El tipo de cambio cargado tiene " + (dias === Infinity ? "una fecha desconocida" : dias + " días") + " de antigüedad. ¿Generar la factura igual con esa tasa, o prefieres actualizarla primero?")){
+        return false;
+      }
+    }
+    var total = montoCLP(l.monto, l.moneda);
+    var neto = Math.round(total / 1.19);
+    var iva = total - neto;
+    var folio = nextFolio();
+    var hoy = new Date().toISOString().slice(0,10);
+    var factura = {
+      folio: folio,
+      razonSocial: l.razonSocial,
+      rut: l.rut,
+      neto: neto,
+      iva: iva,
+      exento: 0,
+      total: total,
+      emision: hoy,
+      vencimiento: addDays(hoy, plazoParaCliente(l.rut)).toISOString().slice(0,10),
+      pagada: false,
+      montoPagado: 0,
+      origen: "manual",
+      concepto: l.glosa || "",
+      presupuestoOrigen: { monto: l.monto, moneda: l.moneda, tasa: tasaDeMoneda(l.moneda) }
+    };
+    pushUndo();
+    state.invoices.unshift(factura);
+    l.generada = true;
+    l.folio = folio;
+    saveData();
+    savePresupuestoStore();
+    renderAll();
+    autoPublicarCambioCompartido();
+    showToast("Factura folio " + folio + " generada por " + fmtCLP(total) + " (" + (l.moneda === "CLP" ? "CLP" : l.moneda + " " + l.monto + " a " + fmtCLP(tasaDeMoneda(l.moneda))) + ").");
+    return true;
+  }
+  // Para cuando la factura ya se cargó directamente en el SII (con su propio
+  // folio real) y solo hace falta reflejarla acá para pasar a Facturas y
+  // Cobranza — a diferencia de "Generar factura", NO inventa un folio nuevo.
+  function marcarLineaComoFacturada(id){
+    var l = (state.presupuesto || []).find(function(x){ return x.id === id; });
+    if (!l || l.generada) return false;
+    if (!l.rut && l.clienteId){
+      var clienteActual = (state.clientesMaestro || []).find(function(c){ return c.id === l.clienteId; });
+      if (clienteActual && clienteActual.rut) l.rut = clienteActual.rut;
+    }
+    if (!l.rut){
+      showToast("A " + l.razonSocial + " le falta el RUT — complétalo en Clientes antes de marcarla como facturada.", { error: true });
+      return false;
+    }
+    if (l.moneda !== "CLP" && tasaDeMoneda(l.moneda) <= 0){
+      showToast("No hay tipo de cambio cargado para " + l.moneda + " — actualízalo arriba antes de marcarla como facturada.", { error: true });
+      return false;
+    }
+    var folioTexto = prompt("Folio con el que quedó en el SII para " + l.razonSocial + ":", "");
+    if (folioTexto === null) return false;
+    folioTexto = folioTexto.trim();
+    if (!folioTexto){
+      showToast("Ingresa el folio con el que quedó en el SII.", { error: true });
+      return false;
+    }
+    var folio = /^\d+$/.test(folioTexto) ? Number(folioTexto) : folioTexto;
+    var yaExiste = state.invoices.some(function(f){ return String(f.folio) === String(folio); });
+    if (yaExiste){
+      showToast("Ya existe una factura con el folio " + folio + " en Facturas — revísala ahí.", { error: true });
+      return false;
+    }
+    var total = montoCLP(l.monto, l.moneda);
+    var neto = Math.round(total / 1.19);
+    var iva = total - neto;
+    var hoy = new Date().toISOString().slice(0,10);
+    var factura = {
+      folio: folio,
+      razonSocial: l.razonSocial,
+      rut: l.rut,
+      neto: neto,
+      iva: iva,
+      exento: 0,
+      total: total,
+      emision: hoy,
+      vencimiento: addDays(hoy, plazoParaCliente(l.rut)).toISOString().slice(0,10),
+      pagada: false,
+      montoPagado: 0,
+      origen: "manual",
+      concepto: l.glosa || "",
+      presupuestoOrigen: { monto: l.monto, moneda: l.moneda, tasa: tasaDeMoneda(l.moneda) }
+    };
+    pushUndo();
+    state.invoices.unshift(factura);
+    l.generada = true;
+    l.folio = folio;
+    if (isFinite(Number(folio)) && Number(folio) >= folioSeq) folioSeq = Number(folio);
+    saveData();
+    savePresupuestoStore();
+    renderAll();
+    autoPublicarCambioCompartido();
+    showToast(l.razonSocial + ": folio " + folio + " registrado en Facturas y Cobranza por " + fmtCLP(total) + ".");
+    return true;
+  }
   function notesDe(rut){ return state.clientNotes[contactKey(rut)] || []; }
   function addNote(rut, texto){
     texto = (texto || "").trim();
@@ -1874,8 +2932,18 @@
   }
 
   function contactKey(rut){ return String(rut || "").trim().toUpperCase(); }
+  // El correo de contacto vive en UN solo lugar de verdad — la ficha del
+  // cliente en Clientes (Presupuesto), que ya tiene su propio campo de
+  // correo. "state.contacts" queda solo como caché rápida por RUT para
+  // clientes que aún no tienen ficha ahí (ej. facturas antiguas sin
+  // proyecto asociado). Guardar desde cualquiera de las dos pantallas
+  // actualiza ambos, para que no queden dos correos distintos para el mismo
+  // cliente.
   function getContactEmail(rut){
-    return (state.contacts[contactKey(rut)] || "").trim();
+    var directo = (state.contacts[contactKey(rut)] || "").trim();
+    if (directo) return directo;
+    var cliente = (state.clientesMaestro || []).find(function(c){ return normRUT(c.rut) === normRUT(rut) && c.rut; });
+    return cliente ? (cliente.contactoEmail || "").trim() : "";
   }
   function setContactEmail(rut, email){
     var key = contactKey(rut);
@@ -1883,6 +2951,11 @@
     if (email) state.contacts[key] = email;
     else delete state.contacts[key];
     saveContacts();
+    var cliente = (state.clientesMaestro || []).find(function(c){ return normRUT(c.rut) === normRUT(rut) && c.rut; });
+    if (cliente && cliente.contactoEmail !== email){
+      cliente.contactoEmail = email;
+      saveClientesMaestroStore();
+    }
   }
 
   // Amount actually collected so far: full total once marked "pagada",
@@ -2033,9 +3106,15 @@
       settings: state.settings,
       driveUrl: state.driveUrl,
       emailjsConfig: state.emailjsConfig,
+      plantillasEmail: state.plantillasEmail,
       clientNotes: state.clientNotes,
       emailHistory: state.emailHistory,
-      costos: state.costos
+      costos: state.costos,
+      tasasCambio: state.tasasCambio,
+      clientesMaestro: state.clientesMaestro,
+      proyectos: state.proyectos,
+      propuestas: state.propuestas,
+      presupuesto: state.presupuesto
     };
   }
   function aplicarSharedConfig(cfg){
@@ -2043,11 +3122,18 @@
     if (cfg.settings) state.settings = Object.assign({}, state.settings, cfg.settings);
     if (typeof cfg.driveUrl === "string") state.driveUrl = cfg.driveUrl;
     if (cfg.emailjsConfig) state.emailjsConfig = Object.assign({}, state.emailjsConfig, cfg.emailjsConfig);
+    if (cfg.plantillasEmail) state.plantillasEmail = Object.assign({}, state.plantillasEmail, cfg.plantillasEmail);
     if (cfg.clientNotes) state.clientNotes = cfg.clientNotes;
     if (cfg.emailHistory) state.emailHistory = cfg.emailHistory;
     if (Array.isArray(cfg.costos)) state.costos = cfg.costos;
+    if (cfg.tasasCambio) state.tasasCambio = cfg.tasasCambio;
+    if (Array.isArray(cfg.clientesMaestro)) state.clientesMaestro = cfg.clientesMaestro;
+    if (Array.isArray(cfg.proyectos)) state.proyectos = cfg.proyectos;
+    if (Array.isArray(cfg.propuestas)) state.propuestas = cfg.propuestas;
+    if (Array.isArray(cfg.presupuesto)) state.presupuesto = cfg.presupuesto;
     // Se guardan también localmente, como respaldo si facturas.json no está disponible.
-    saveSettings(); saveDriveUrl(); saveEmailjsConfig(); saveNotesStore(); saveEmailHistory(); saveCostosStore();
+    saveSettings(); saveDriveUrl(); saveEmailjsConfig(); savePlantillasEmailStore(); saveNotesStore(); saveEmailHistory(); saveCostosStore();
+    saveTasasStore(); saveClientesMaestroStore(); saveProyectosStore(); savePropuestasStore(); savePresupuestoStore();
   }
 
   // Ventana de protección: sirve solo para no pisar un formulario de edición
@@ -2182,9 +3268,17 @@
     githubConfig: loadGithubConfig(),
     driveUrl: loadDriveUrl(),
     emailjsConfig: loadEmailjsConfig(),
+    plantillasEmail: loadPlantillasEmail(),
     emailHistory: loadEmailHistory(),
     clientNotes: loadNotes(),
     costos: loadCostos(),
+    tasasCambio: loadTasas() || { fecha: "", uf: 0, usd: 0, eur: 0, origen: "" },
+    clientesMaestro: loadClientesMaestro(),
+    proyectos: loadProyectos(),
+    propuestas: loadPropuestas(),
+    presupuesto: loadPresupuesto(),
+    presupuestoAnio: new Date().getFullYear(),
+    presupuestoMes: new Date().getMonth() + 1,
     kanbanMode: false,
     notesOpenRut: null,
     filter: "todas",
@@ -2201,6 +3295,36 @@
       clientes: { key: null, dir: 1 }
     }
   };
+
+  // Migración única: versiones anteriores de esta sección guardaban moneda/
+  // monto mensual directo en el cliente (un solo proyecto implícito). Si
+  // encuentra clientes con eso y todavía no hay Proyectos creados, les arma
+  // su primer proyecto "General" para no perder el dato — de ahí en adelante
+  // cada cliente puede tener más de uno.
+  (function migrarClientesAProyectos(){
+    if ((state.proyectos || []).length > 0) return;
+    var seq = 1;
+    (state.clientesMaestro || []).forEach(function(c){
+      if (Number(c.montoMensual) > 0){
+        state.proyectos.push({
+          id: "py" + (seq++) + "-migr-" + Date.now(),
+          clienteId: c.id,
+          glosa: "General",
+          moneda: MONEDAS.indexOf(c.moneda) >= 0 ? c.moneda : "CLP",
+          montoMensual: Math.round(Number(c.montoMensual) || 0),
+          montoTotal: 0,
+          frecuenciaMeses: 1,
+          anioInicio: new Date().getFullYear(),
+          mesInicio: new Date().getMonth() + 1,
+          fechaTermino: "",
+          activo: true
+        });
+      }
+      delete c.moneda;
+      delete c.montoMensual;
+    });
+    if (state.proyectos.length){ saveProyectosStore(); saveClientesMaestroStore(); }
+  })();
 
   function compareValues(a, b, type){
     if (type === "number") return (Number(a) || 0) - (Number(b) || 0);
@@ -2290,6 +3414,7 @@
 
   var VIEW_META = {
     resumen:  { eyebrow: "Bienvenido, Freddy", title: "Facturación & Cobranzas", desc: "Cartera de clientes con folios, vencimientos y estado de pago en tiempo real." },
+    presupuesto: { eyebrow: "Antes de facturar", title: "Presupuesto", desc: "Tipo de cambio, propuestas comerciales, clientes y el presupuesto mensual que se convierte en facturas reales." },
     facturas: { eyebrow: "Cartera completa", title: "Facturas", desc: "Busca, filtra y actualiza el estado de cada factura emitida." },
     cobranza: { eyebrow: "Gestión de cobranza", title: "Cobranza", desc: "Cuentas por cobrar ordenadas por urgencia, con tramos de morosidad." },
     clientes: { eyebrow: "Cartera por cliente", title: "Clientes", desc: "Exposición total y estado de pago agrupados por razón social." },
@@ -3078,6 +4203,32 @@
       });
       actionTd.appendChild(editBtn);
 
+      var emailFactura = getContactEmail(f.rut);
+      var sendFacturaBtn;
+      if (emailFactura && emailjsListo()){
+        sendFacturaBtn = document.createElement("button");
+        sendFacturaBtn.type = "button";
+        sendFacturaBtn.className = "pago-save-btn";
+        sendFacturaBtn.textContent = "Enviar factura";
+        sendFacturaBtn.title = "Enviar esta factura por correo a " + emailFactura;
+        sendFacturaBtn.addEventListener("click", function(){ sendFacturaDirecto(f, sendFacturaBtn); });
+      } else if (emailFactura){
+        sendFacturaBtn = document.createElement("a");
+        sendFacturaBtn.className = "pago-save-btn";
+        sendFacturaBtn.href = buildFacturaMailto(f);
+        sendFacturaBtn.textContent = "Enviar factura";
+        sendFacturaBtn.title = "Abre tu correo con la factura ya redactada para " + emailFactura;
+      } else {
+        sendFacturaBtn = document.createElement("button");
+        sendFacturaBtn.type = "button";
+        sendFacturaBtn.className = "pago-save-btn";
+        sendFacturaBtn.textContent = "Enviar factura";
+        sendFacturaBtn.title = "Falta el correo de " + f.razonSocial + " — cárgalo en Clientes (Presupuesto) o en Clientes";
+        sendFacturaBtn.style.opacity = ".45";
+        sendFacturaBtn.addEventListener("click", function(){ showToast("A " + f.razonSocial + " le falta el correo — cárgalo en Clientes."); });
+      }
+      actionTd.appendChild(sendFacturaBtn);
+
       var rejBtn = document.createElement("button");
       rejBtn.className = "delete-btn";
       rejBtn.type = "button";
@@ -3289,8 +4440,6 @@
     });
   }
 
-  var EMPRESA_NOMBRE = "DMZ Tax Advisors";
-
   function buildCobranzaContent(c){
     var pendientes = c.invoices.filter(function(f){ return saldoDe(f) > 0; })
       .sort(function(a,b){ return daysUntil(a.vencimiento) - daysUntil(b.vencimiento); });
@@ -3301,14 +4450,10 @@
         " · Saldo " + fmtCLP(saldoDe(f)) + " (" + diasTxt + ")";
     }).join("\n");
 
-    var subject = EMPRESA_NOMBRE + " · Recordatorio de cobranza · " + c.razonSocial;
-    var body =
-      "Estimados " + c.razonSocial + ",\n\n" +
-      "Junto con saludar, les escribimos de " + EMPRESA_NOMBRE + " para recordarles el estado de cobranza de su cuenta.\n\n" +
-      "Documentos pendientes de pago (saldo total " + fmtCLP(c.pendiente) + "):\n" +
-      filas + "\n\n" +
-      "Agradecemos regularizar el pago a la brevedad, o contactarnos si ya fue realizado para actualizar nuestros registros.\n\n" +
-      "Saludos cordiales,\n" + EMPRESA_NOMBRE;
+    var pl = state.plantillasEmail || plantillasPorDefecto();
+    var datos = { cliente: c.razonSocial, saldo: fmtCLP(c.pendiente), detalle: filas, empresa: EMPRESA_NOMBRE };
+    var subject = aplicarPlantilla(pl.cobranzaAsunto, datos);
+    var body = aplicarPlantilla(pl.cobranzaCuerpo, datos);
 
     return { subject: subject, body: body };
   }
@@ -3340,6 +4485,55 @@
       btn.style.pointerEvents = "";
       showToast("No se pudo enviar por EmailJS. Se abrirá tu correo como respaldo.");
       window.location.href = buildCobranzaMailto(c);
+    });
+  }
+
+  // ---------- Envío de la factura misma al cliente (no el recordatorio de
+  // cobranza) — reutiliza la misma configuración de EmailJS ya conectada
+  // arriba; si no está configurada, cae al mailto: como respaldo, igual que
+  // "Enviar cobranza". ----------
+  function buildFacturaContent(f){
+    var pl = state.plantillasEmail || plantillasPorDefecto();
+    var datos = {
+      cliente: f.razonSocial,
+      folio: f.folio,
+      emision: fmtDate(new Date(f.emision)),
+      vencimiento: fmtDate(new Date(f.vencimiento)),
+      monto: fmtCLP(f.total),
+      concepto: f.concepto ? ("- Concepto: " + f.concepto + "\n") : "",
+      empresa: EMPRESA_NOMBRE
+    };
+    var subject = aplicarPlantilla(pl.facturaAsunto, datos);
+    var body = aplicarPlantilla(pl.facturaCuerpo, datos);
+    return { subject: subject, body: body };
+  }
+  function buildFacturaMailto(f){
+    var content = buildFacturaContent(f);
+    return "mailto:" + encodeURIComponent(getContactEmail(f.rut)) +
+      "?subject=" + encodeURIComponent(content.subject) +
+      "&body=" + encodeURIComponent(content.body);
+  }
+  function sendFacturaDirecto(f, btn){
+    var email = getContactEmail(f.rut);
+    var content = buildFacturaContent(f);
+    var original = btn.textContent;
+    btn.textContent = "Enviando…";
+    btn.style.pointerEvents = "none";
+    window.emailjs.send(state.emailjsConfig.service, state.emailjsConfig.template, {
+      to_email: email,
+      to_name: f.razonSocial,
+      subject: content.subject,
+      message: content.body
+    }).then(function(){
+      logEmailSent(f.rut, email);
+      showToast("Factura folio " + f.folio + " enviada a " + f.razonSocial + " (" + email + ").");
+      btn.textContent = original;
+      btn.style.pointerEvents = "";
+    }).catch(function(err){
+      btn.textContent = original;
+      btn.style.pointerEvents = "";
+      showToast("No se pudo enviar por EmailJS. Se abrirá tu correo como respaldo.");
+      window.location.href = buildFacturaMailto(f);
     });
   }
 
@@ -4260,6 +5454,116 @@
     log.innerHTML = html;
   }
 
+  // Importador de clientes: Razón social, RUT, Moneda, Monto mensual,
+  // Contacto, Correo — mismas columnas en ese orden, con encabezado.
+  function parseClientesImport(text){
+    text = text.replace(/^﻿/, "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+    var lines = text.split("\n").filter(function(l){ return l.trim() !== ""; });
+    if (!lines.length) throw new Error("El archivo está vacío.");
+    var sep = detectSeparator(lines[0]);
+    var nuevos = [], omitidos = 0;
+    for (var i = 1; i < lines.length; i++){
+      var cells = splitCSVLine(lines[i], sep);
+      var razon = String(cells[0] || "").trim();
+      var rut = String(cells[1] || "").trim();
+      if (!razon || !rut){ omitidos++; continue; }
+      nuevos.push({
+        id: "cl" + (clienteSeq++) + "-" + Date.now() + "-" + i,
+        razonSocial: razon,
+        rut: rut,
+        contactoNombre: String(cells[2] || "").trim(),
+        contactoEmail: String(cells[3] || "").trim(),
+        activo: true
+      });
+    }
+    return { nuevos: nuevos, omitidos: omitidos };
+  }
+  function showImportClientesLog(html, isError){
+    var log = document.getElementById("import-clientes-log");
+    log.hidden = false;
+    log.classList.toggle("error", !!isError);
+    log.innerHTML = html;
+  }
+  function runImportClientes(text){
+    var result;
+    try { result = parseClientesImport(text); }
+    catch(e){ showImportClientesLog("No se pudo importar: " + e.message, true); return; }
+    if (result.nuevos.length){
+      state.clientesMaestro = state.clientesMaestro.concat(result.nuevos);
+      saveClientesMaestroStore();
+      renderAll();
+      autoPublicarCambioCompartido();
+    }
+    var lines = [];
+    lines.push("<strong>" + result.nuevos.length + " cliente(s) importado(s)</strong>.");
+    if (result.omitidos) lines.push(result.omitidos + " fila(s) sin razón social o RUT, se omitieron.");
+    showImportClientesLog(lines.join("<br>"));
+  }
+
+  // Importador de Pipeline/Rechazadas (y opcionalmente Backlog): Razón
+  // social, RUT, Moneda, Monto mensual, Fecha, Estado, Notas. La columna
+  // Estado acepta variaciones de texto: "pipeline"/"en conversación" (por
+  // defecto si no calza con nada), "rechazada"/"rechazado"/"perdida"/"no
+  // ganada", o "backlog"/"ganada" (esa fila se crea de una vez como cliente).
+  function estadoDesdeTexto(txt){
+    var t = String(txt || "").trim().toLowerCase();
+    if (/backlog|ganad/.test(t)) return "ganada";
+    if (/rechaz|perdid|no ganad/.test(t)) return "perdida";
+    return "pendiente";
+  }
+  function parsePropuestasImport(text){
+    text = text.replace(/^﻿/, "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+    var lines = text.split("\n").filter(function(l){ return l.trim() !== ""; });
+    if (!lines.length) throw new Error("El archivo está vacío.");
+    var sep = detectSeparator(lines[0]);
+    var nuevos = [], omitidos = 0, ganadas = 0;
+    for (var i = 1; i < lines.length; i++){
+      var cells = splitCSVLine(lines[i], sep);
+      var razon = String(cells[0] || "").trim();
+      if (!razon){ omitidos++; continue; }
+      var rut = String(cells[1] || "").trim();
+      var glosa = String(cells[2] || "").trim();
+      var moneda = String(cells[3] || "CLP").trim().toUpperCase();
+      if (MONEDAS.indexOf(moneda) < 0) moneda = "CLP";
+      var monto = Math.round(Math.abs(parseCLNumber(cells[4] || "0")));
+      var fecha = parseRCVDate(cells[5] || "") || "";
+      var estado = estadoDesdeTexto(cells[6]);
+      var notas = String(cells[7] || "").trim();
+      if (estado === "ganada"){
+        addCliente({ razonSocial: razon, rut: rut, moneda: moneda, montoMensual: monto, glosa: glosa, activo: true });
+        ganadas++;
+        continue;
+      }
+      nuevos.push({
+        id: "pr" + (propuestaSeq++) + "-" + Date.now() + "-" + i,
+        razonSocial: razon, rut: rut, glosa: glosa, moneda: moneda, montoMensual: monto,
+        fecha: fecha || new Date().toISOString().slice(0,10), estado: estado, notas: notas, motivoRechazo: ""
+      });
+    }
+    return { nuevos: nuevos, omitidos: omitidos, ganadas: ganadas };
+  }
+  function showImportPropuestasLog(html, isError){
+    var log = document.getElementById("import-propuestas-log");
+    log.hidden = false;
+    log.classList.toggle("error", !!isError);
+    log.innerHTML = html;
+  }
+  function runImportPropuestas(text){
+    var result;
+    try { result = parsePropuestasImport(text); }
+    catch(e){ showImportPropuestasLog("No se pudo importar: " + e.message, true); return; }
+    if (result.nuevos.length){
+      state.propuestas = state.propuestas.concat(result.nuevos);
+      savePropuestasStore();
+    }
+    renderAll();
+    autoPublicarCambioCompartido();
+    var lines = [];
+    lines.push("<strong>" + result.nuevos.length + " fila(s) a Pipeline/Rechazada</strong>" + (result.ganadas ? " y " + result.ganadas + " directo a Backlog (clientes)" : "") + ".");
+    if (result.omitidos) lines.push(result.omitidos + " fila(s) sin razón social, se omitieron.");
+    showImportPropuestasLog(lines.join("<br>"));
+  }
+
   function runImportHonorarios(text){
     var result;
     try {
@@ -4387,6 +5691,513 @@
         '<div class="semaforo-row"><span class="semaforo-dot ' + colorRenta + '"></span><span class="semaforo-label">Rentabilidad</span><span class="semaforo-val">' + margenTxt + '</span></div>' +
         '</div>';
     }).join("");
+  }
+
+  // ---------- Presupuesto: tipo de cambio, propuestas, clientes, líneas ----------
+  function renderTasas(){
+    var t = state.tasasCambio || {};
+    var ufEl = document.getElementById("tasa-uf");
+    var usdEl = document.getElementById("tasa-usd");
+    var eurEl = document.getElementById("tasa-eur");
+    var hint = document.getElementById("tasas-fecha-hint");
+    if (!ufEl) return;
+    if (document.activeElement !== ufEl) ufEl.value = t.uf || "";
+    if (document.activeElement !== usdEl) usdEl.value = t.usd || "";
+    if (document.activeElement !== eurEl) eurEl.value = t.eur || "";
+    hint.textContent = t.fecha
+      ? ("actualizado " + fmtDate(new Date(t.fecha + "T00:00:00")) + (t.origen === "manual" ? " (manual)" : " (automático)"))
+      : "sin actualizar — ingresa un valor manual o presiona Actualizar automático";
+  }
+
+  // Tabla unificada: Backlog (= los clientes ya cargados abajo, de solo
+  // lectura acá) + Pipeline y Rechazada (= state.propuestas, editables). Una
+  // propuesta "ganada" deja de listarse aparte porque ya aparece como su
+  // cliente correspondiente — así no sale duplicada.
+  function renderPropuestas(){
+    var body = document.getElementById("propuestas-body");
+    if (!body) return;
+    // Un renglón de Backlog por PROYECTO (no por cliente) — así un cliente
+    // con 2+ proyectos aparece 2+ veces, cada uno con su propia glosa/monto.
+    var backlogRows = (state.proyectos || []).map(function(pr){
+      var c = (state.clientesMaestro || []).find(function(x){ return x.id === pr.clienteId; });
+      if (!c) return null;
+      var inactivo = !c.activo || !pr.activo;
+      var vencido = pr.fechaTermino && pr.fechaTermino < new Date().toISOString().slice(0,10);
+      return { tipo: "backlog", id: pr.id, fecha: "", razonSocial: c.razonSocial + (pr.glosa ? " — " + pr.glosa : ""),
+        rut: c.rut, moneda: pr.moneda, montoMensual: pr.montoMensual,
+        notas: [inactivo ? "(inactivo)" : "", vencido ? "(contrato vencido)" : ""].filter(Boolean).join(" ") };
+    }).filter(Boolean);
+    var pipelineRows = (state.propuestas || []).filter(function(p){ return p.estado !== "ganada"; }).map(function(p){
+      var notas = p.notas || "";
+      if (p.estado === "perdida" && p.motivoRechazo) notas = (notas ? notas + " — " : "") + "Motivo: " + p.motivoRechazo;
+      return { tipo: p.estado === "perdida" ? "rechazada" : "pipeline", id: p.id, fecha: p.fecha,
+        razonSocial: p.razonSocial + (p.glosa ? " — " + p.glosa : ""), rut: p.rut, moneda: p.moneda,
+        montoMensual: p.montoMensual, notas: notas };
+    });
+    var orden = { backlog: 0, pipeline: 1, rechazada: 2 };
+    var list = backlogRows.concat(pipelineRows).sort(function(a,b){
+      return (orden[a.tipo] - orden[b.tipo]) || a.razonSocial.localeCompare(b.razonSocial);
+    });
+
+    // % de cada estado por monto (no por cantidad de filas) — para ver de un
+    // vistazo cuánto peso en plata tiene el Backlog vs. lo que todavía está
+    // en conversación vs. lo que se rechazó, con la tasa de cambio vigente.
+    var resumenEl = document.getElementById("pipeline-resumen-montos");
+    if (resumenEl){
+      var montoPorTipo = { backlog: 0, pipeline: 0, rechazada: 0 };
+      list.forEach(function(r){ montoPorTipo[r.tipo] += montoCLP(r.montoMensual, r.moneda); });
+      var granTotal = montoPorTipo.backlog + montoPorTipo.pipeline + montoPorTipo.rechazada;
+      if (!granTotal){
+        resumenEl.innerHTML = "";
+      } else {
+        var COLORES = { backlog: "var(--good)", pipeline: "var(--accent)", rechazada: "var(--critical)" };
+        var ETIQUETAS = { backlog: "Backlog", pipeline: "Pipeline", rechazada: "Rechazada" };
+        var segmentos = ["backlog","pipeline","rechazada"].map(function(t){
+          var pct = granTotal ? (montoPorTipo[t] / granTotal * 100) : 0;
+          return { t: t, pct: pct };
+        });
+        var barra = segmentos.filter(function(s){ return s.pct > 0; }).map(function(s){
+          return '<div style="width:' + s.pct.toFixed(1) + '%; background:' + COLORES[s.t] + ';" title="' + ETIQUETAS[s.t] + ": " + s.pct.toFixed(1) + '%"></div>';
+        }).join("");
+        var leyenda = segmentos.map(function(s){
+          return '<span style="display:inline-flex; align-items:center; gap:5px; margin-right:16px;">' +
+            '<span style="width:10px; height:10px; border-radius:2px; background:' + COLORES[s.t] + '; display:inline-block;"></span>' +
+            ETIQUETAS[s.t] + ': ' + s.pct.toFixed(0) + '% (' + fmtCLP(montoPorTipo[s.t]) + ')</span>';
+        }).join("");
+        resumenEl.innerHTML =
+          '<div style="display:flex; height:14px; border-radius:7px; overflow:hidden; background:var(--surface-2, #222); margin-bottom:8px;">' + barra + '</div>' +
+          '<div>' + leyenda + '</div>';
+      }
+    }
+
+    if (!list.length){
+      body.innerHTML = '<tr><td colspan="8" style="color:var(--muted); padding:18px 10px;">Todavía no hay nada en el pipeline — agrega una propuesta o un cliente.</td></tr>';
+      return;
+    }
+    var ESTADO_LABEL = { backlog: "Backlog", pipeline: "Pipeline", rechazada: "Rechazada" };
+    var ESTADO_CLASS = { backlog: "tipo-33", pipeline: "tipo-nd", rechazada: "tipo-61" };
+    body.innerHTML = list.map(function(r){
+      var acciones = "";
+      if (r.tipo === "pipeline"){
+        acciones = '<button class="btn ghost small pp-ganar-btn" data-id="' + r.id + '" type="button">Pasar a Backlog</button> ' +
+          '<button class="btn ghost small pp-perder-btn" data-id="' + r.id + '" type="button">Rechazar</button> ' +
+          '<button class="btn ghost small pp-del-btn" data-id="' + r.id + '" type="button" title="Eliminar">✕</button>';
+      } else if (r.tipo === "rechazada"){
+        acciones = '<button class="btn ghost small pp-reabrir-btn" data-id="' + r.id + '" type="button">Volver a Pipeline</button> ' +
+          '<button class="btn ghost small pp-del-btn" data-id="' + r.id + '" type="button" title="Eliminar">✕</button>';
+      } else {
+        acciones = '<span style="color:var(--muted); font-size:12px;">edítalo abajo, en Proyectos</span>';
+      }
+      return '<tr data-id="' + r.id + '">' +
+        '<td class="tabular">' + (r.fecha ? fmtDate(new Date(r.fecha + "T00:00:00")) : "") + '</td>' +
+        '<td>' + r.razonSocial + '</td>' +
+        '<td>' + (r.rut || "") + '</td>' +
+        '<td>' + r.moneda + '</td>' +
+        '<td class="num tabular">' + fmtCLP(r.montoMensual) + '</td>' +
+        '<td><span class="badge ' + ESTADO_CLASS[r.tipo] + '"><span class="dot"></span>' + ESTADO_LABEL[r.tipo] + '</span></td>' +
+        '<td style="max-width:180px; white-space:normal;">' + (r.notas || "") + '</td>' +
+        '<td style="white-space:nowrap;">' + acciones + '</td>' +
+        '</tr>';
+    }).join("");
+    body.querySelectorAll(".pp-ganar-btn").forEach(function(btn){
+      btn.addEventListener("click", function(){ convertirPropuestaEnCliente(btn.getAttribute("data-id")); });
+    });
+    body.querySelectorAll(".pp-perder-btn").forEach(function(btn){
+      btn.addEventListener("click", function(){
+        var motivo = prompt("¿Por qué no se ganó? (opcional — precio, timing, se fue con otro asesor, etc.)", "");
+        if (motivo === null) return;
+        updatePropuestaEstado(btn.getAttribute("data-id"), "perdida", motivo);
+      });
+    });
+    body.querySelectorAll(".pp-reabrir-btn").forEach(function(btn){
+      btn.addEventListener("click", function(){ updatePropuestaEstado(btn.getAttribute("data-id"), "pendiente"); });
+    });
+    body.querySelectorAll(".pp-del-btn").forEach(function(btn){
+      btn.addEventListener("click", function(){ deletePropuesta(btn.getAttribute("data-id")); });
+    });
+  }
+
+  function renderClientesMaestro(){
+    var body = document.getElementById("clientes-maestro-body");
+    var countEl = document.getElementById("clientes-maestro-count");
+    if (!body) return;
+    var list = (state.clientesMaestro || []).slice().sort(function(a,b){ return a.razonSocial.localeCompare(b.razonSocial); });
+    countEl.textContent = list.length + (list.length === 1 ? " cliente" : " clientes");
+    if (!list.length){
+      body.innerHTML = '<tr><td colspan="6" style="color:var(--muted); padding:18px 10px;">Todavía no hay clientes en la base — agrégalos arriba o impórtalos desde Excel.</td></tr>';
+      return;
+    }
+    body.innerHTML = list.map(function(c){
+      return '<tr data-id="' + c.id + '">' +
+        '<td><input type="text" class="cl-razon-input" data-id="' + c.id + '" value="' + c.razonSocial.replace(/"/g,"&quot;") + '" style="width:160px;"></td>' +
+        '<td><input type="text" class="cl-rut-input" data-id="' + c.id + '" value="' + (c.rut || "").replace(/"/g,"&quot;") + '" placeholder="Sin RUT" style="width:110px;' + (c.rut ? "" : " border-color:var(--warning);") + '"></td>' +
+        '<td><input type="text" class="cl-contacto-nombre-input" data-id="' + c.id + '" value="' + (c.contactoNombre || "").replace(/"/g,"&quot;") + '" style="width:130px;"></td>' +
+        '<td><input type="email" class="cl-contacto-email-input" data-id="' + c.id + '" value="' + (c.contactoEmail || "").replace(/"/g,"&quot;") + '" style="width:160px;"></td>' +
+        '<td><input type="checkbox" class="cl-activo-chk" data-id="' + c.id + '" ' + (c.activo ? "checked" : "") + '></td>' +
+        '<td><button class="btn ghost small cl-del-btn" data-id="' + c.id + '" type="button" title="Eliminar">✕</button></td>' +
+        '</tr>';
+    }).join("");
+    body.querySelectorAll(".cl-activo-chk").forEach(function(chk){
+      chk.addEventListener("change", function(){ updateCliente(chk.getAttribute("data-id"), { activo: chk.checked }); });
+    });
+    body.querySelectorAll(".cl-del-btn").forEach(function(btn){
+      btn.addEventListener("click", function(){ deleteCliente(btn.getAttribute("data-id")); });
+    });
+    body.querySelectorAll(".cl-razon-input").forEach(function(inp){
+      inp.addEventListener("change", function(){ updateCliente(inp.getAttribute("data-id"), { razonSocial: inp.value }); });
+    });
+    body.querySelectorAll(".cl-rut-input").forEach(function(inp){
+      inp.addEventListener("change", function(){ updateCliente(inp.getAttribute("data-id"), { rut: inp.value }); });
+    });
+    body.querySelectorAll(".cl-contacto-nombre-input").forEach(function(inp){
+      inp.addEventListener("change", function(){ updateCliente(inp.getAttribute("data-id"), { contactoNombre: inp.value }); });
+    });
+    body.querySelectorAll(".cl-contacto-email-input").forEach(function(inp){
+      inp.addEventListener("change", function(){ updateCliente(inp.getAttribute("data-id"), { contactoEmail: inp.value }); });
+    });
+  }
+
+  function poblarProyectoClienteSelect(){
+    var sel = document.getElementById("py-cliente");
+    if (!sel || document.activeElement === sel) return;
+    var actual = sel.value;
+    var list = (state.clientesMaestro || []).slice().sort(function(a,b){ return a.razonSocial.localeCompare(b.razonSocial); });
+    sel.innerHTML = list.map(function(c){
+      return '<option value="' + c.id + '">' + c.razonSocial + (c.rut ? " (" + c.rut + ")" : "") + '</option>';
+    }).join("") || '<option value="">— agrega un cliente primero —</option>';
+    if (list.some(function(c){ return c.id === actual; })) sel.value = actual;
+  }
+
+  function renderProyectos(){
+    var body = document.getElementById("proyectos-body");
+    var countEl = document.getElementById("proyectos-count");
+    if (!body) return;
+    poblarProyectoClienteSelect();
+    var list = (state.proyectos || []).map(function(pr){
+      var c = (state.clientesMaestro || []).find(function(x){ return x.id === pr.clienteId; });
+      return { proyecto: pr, cliente: c };
+    }).filter(function(r){ return r.cliente; })
+      .sort(function(a,b){ return a.cliente.razonSocial.localeCompare(b.cliente.razonSocial) || a.proyecto.glosa.localeCompare(b.proyecto.glosa); });
+    countEl.textContent = list.length + (list.length === 1 ? " proyecto" : " proyectos");
+    if (!list.length){
+      body.innerHTML = '<tr><td colspan="11" style="color:var(--muted); padding:18px 10px;">Todavía no hay proyectos — agrega uno arriba para que el cliente entre al presupuesto mensual.</td></tr>';
+      return;
+    }
+    var FRECUENCIAS = [[1,"Mensual"],[2,"Bimestral"],[3,"Trimestral"],[6,"Semestral"],[12,"Anual"]];
+    body.innerHTML = list.map(function(r){
+      var pr = r.proyecto, c = r.cliente;
+      var monedaOpts = MONEDAS.map(function(m){ return '<option' + (m === pr.moneda ? " selected" : "") + '>' + m + '</option>'; }).join("");
+      var freqOpts = FRECUENCIAS.map(function(f){
+        return '<option value="' + f[0] + '"' + (Number(pr.frecuenciaMeses || 1) === f[0] ? " selected" : "") + '>' + f[1] + '</option>';
+      }).join("");
+      var saldo = saldoProyecto(pr);
+      var saldoHtml = saldo === null
+        ? '<span style="color:var(--muted);">— (recurrente)</span>'
+        : '<span style="color:' + (saldo <= 0 ? "var(--good)" : "var(--text-primary)") + ';">' +
+            (pr.moneda === "CLP" ? fmtCLP(saldo) : saldo.toLocaleString("es-CL") + " " + pr.moneda) +
+            (saldo <= 0 ? " ✓" : "") + '</span>';
+      return '<tr data-id="' + pr.id + '">' +
+        '<td>' + c.razonSocial + '</td>' +
+        '<td><input type="text" class="py-glosa-input" data-id="' + pr.id + '" value="' + pr.glosa.replace(/"/g,"&quot;") + '" style="width:150px;"></td>' +
+        '<td><select class="py-moneda-select" data-id="' + pr.id + '">' + monedaOpts + '</select></td>' +
+        '<td class="num tabular"><input type="number" class="py-monto-input" data-id="' + pr.id + '" value="' + pr.montoMensual + '" min="0" step="1" style="width:90px; text-align:right;"></td>' +
+        '<td><select class="py-frecuencia-select" data-id="' + pr.id + '">' + freqOpts + '</select></td>' +
+        '<td class="num tabular"><input type="number" class="py-cuotas-input" data-id="' + pr.id + '" value="' + (pr.cuotas || "") + '" min="0" step="1" placeholder="—" style="width:60px; text-align:right;"></td>' +
+        '<td class="num tabular"><input type="number" class="py-montototal-input" data-id="' + pr.id + '" value="' + (pr.montoTotal || "") + '" min="0" step="1" placeholder="Recurrente" style="width:100px; text-align:right;" ' + (pr.cuotas > 0 ? 'disabled title="Se calcula solo desde N° de cuotas"' : '') + '></td>' +
+        '<td class="num tabular">' + saldoHtml + '</td>' +
+        '<td><input type="date" class="py-termino-input" data-id="' + pr.id + '" value="' + (pr.fechaTermino || "") + '" style="width:135px;"></td>' +
+        '<td><input type="checkbox" class="py-activo-chk" data-id="' + pr.id + '" ' + (pr.activo ? "checked" : "") + '></td>' +
+        '<td><button class="btn ghost small py-del-btn" data-id="' + pr.id + '" type="button" title="Eliminar">✕</button></td>' +
+        '</tr>';
+    }).join("");
+    body.querySelectorAll(".py-glosa-input").forEach(function(inp){
+      inp.addEventListener("change", function(){ updateProyecto(inp.getAttribute("data-id"), { glosa: inp.value }); });
+    });
+    body.querySelectorAll(".py-moneda-select").forEach(function(sel){
+      sel.addEventListener("change", function(){ updateProyecto(sel.getAttribute("data-id"), { moneda: sel.value }); });
+    });
+    body.querySelectorAll(".py-monto-input").forEach(function(inp){
+      inp.addEventListener("change", function(){ updateProyecto(inp.getAttribute("data-id"), { montoMensual: inp.value }); });
+    });
+    body.querySelectorAll(".py-frecuencia-select").forEach(function(sel){
+      sel.addEventListener("change", function(){ updateProyecto(sel.getAttribute("data-id"), { frecuenciaMeses: sel.value }); });
+    });
+    body.querySelectorAll(".py-cuotas-input").forEach(function(inp){
+      inp.addEventListener("change", function(){ updateProyecto(inp.getAttribute("data-id"), { cuotas: inp.value }); });
+    });
+    body.querySelectorAll(".py-montototal-input").forEach(function(inp){
+      inp.addEventListener("change", function(){ updateProyecto(inp.getAttribute("data-id"), { montoTotal: inp.value }); });
+    });
+    body.querySelectorAll(".py-termino-input").forEach(function(inp){
+      inp.addEventListener("change", function(){ updateProyecto(inp.getAttribute("data-id"), { fechaTermino: inp.value }); });
+    });
+    body.querySelectorAll(".py-activo-chk").forEach(function(chk){
+      chk.addEventListener("change", function(){ updateProyecto(chk.getAttribute("data-id"), { activo: chk.checked }); });
+    });
+    body.querySelectorAll(".py-del-btn").forEach(function(btn){
+      btn.addEventListener("click", function(){ deleteProyecto(btn.getAttribute("data-id")); });
+    });
+  }
+
+  function poblarPresupuestoAnio(){
+    var sel = document.getElementById("presupuesto-anio");
+    if (!sel) return;
+    var actual = new Date().getFullYear();
+    var anios = [actual - 1, actual, actual + 1];
+    if (document.activeElement !== sel){
+      sel.innerHTML = anios.map(function(a){
+        return '<option value="' + a + '"' + (a === state.presupuestoAnio ? " selected" : "") + '>' + a + '</option>';
+      }).join("");
+    }
+    var mesSel = document.getElementById("presupuesto-mes");
+    if (mesSel && document.activeElement !== mesSel) mesSel.value = String(state.presupuestoMes);
+  }
+
+  function renderPresupuesto(){
+    var body = document.getElementById("presupuesto-body");
+    var totals = document.getElementById("presupuesto-totals");
+    if (!body) return;
+    poblarPresupuestoAnio();
+    var anio = Number(state.presupuestoAnio);
+    var mes = Number(state.presupuestoMes);
+
+    var resumenEl = document.getElementById("presupuesto-resumen-pendiente");
+    if (resumenEl){
+      var lineasMes = (state.presupuesto || []).filter(function(l){ return l.anio === anio && l.mes === mes; });
+      var presupuestadoMes = lineasMes.reduce(function(s,l){ return s + montoPresupuestadoDe(l); }, 0);
+      var facturadoMes = lineasMes.filter(function(l){ return l.generada; }).reduce(function(s,l){ return s + montoPresupuestadoDe(l); }, 0);
+      var pendMes = pendienteDeFacturarMes(anio, mes);
+      var pendAnio = pendienteDeFacturarHastaDiciembre(anio, mes);
+      var pct = presupuestadoMes > 0 ? Math.round(facturadoMes / presupuestadoMes * 100) : (lineasMes.length ? 100 : 0);
+      resumenEl.innerHTML =
+        (lineasMes.length
+          ? '<div><span style="color:var(--text-secondary);">Facturado este mes:</span> <strong>' + fmtCLP(facturadoMes) +
+            '</strong> de <strong>' + fmtCLP(presupuestadoMes) + '</strong> presupuestados (' + pct + '%)</div>'
+          : '') +
+        '<div><span style="color:var(--text-secondary);">Pendiente de facturar este mes:</span> <strong>' + fmtCLP(pendMes) + '</strong></div>' +
+        '<div><span style="color:var(--text-secondary);">Pendiente hasta diciembre ' + anio + ':</span> <strong>' + fmtCLP(pendAnio) + '</strong></div>';
+    }
+
+    var list = (state.presupuesto || []).filter(function(l){ return l.anio === anio && l.mes === mes; })
+      .sort(function(a,b){ return a.razonSocial.localeCompare(b.razonSocial); });
+    if (!list.length){
+      body.innerHTML = '<tr><td colspan="9" style="color:var(--muted); padding:18px 10px;">Sin líneas para este mes todavía — usa "Agregar proyectos vigentes" o crea una línea manual.</td></tr>';
+      totals.innerHTML = "";
+      return;
+    }
+    var totalCLP = 0;
+    body.innerHTML = list.map(function(l){
+      var tasa = tasaDeMoneda(l.moneda);
+      var totalLinea = montoPresupuestadoDe(l);
+      totalCLP += totalLinea;
+      var estadoHtml = l.generada
+        ? '<span class="badge tipo-33"><span class="dot"></span>Facturada (folio ' + l.folio + ')</span>'
+        : '<span class="badge tipo-nd"><span class="dot"></span>Pendiente de facturar</span>';
+      return '<tr data-id="' + l.id + '">' +
+        '<td>' + l.razonSocial + '</td>' +
+        '<td>' + (l.glosa || "") + '</td>' +
+        '<td>' + (l.rut || "") + '</td>' +
+        '<td>' + l.moneda + '</td>' +
+        '<td class="num tabular">' + (l.generada
+          ? fmtCLP(l.monto)
+          : '<input type="number" class="lp-monto-input" data-id="' + l.id + '" value="' + l.monto + '" min="0" step="1" style="width:100px; text-align:right;">'
+        ) + '</td>' +
+        '<td class="num tabular">' + (l.moneda === "CLP" ? "—" : fmtCLP(tasa)) + '</td>' +
+        '<td class="num tabular"><strong>' + fmtCLP(totalLinea) + '</strong></td>' +
+        '<td>' + estadoHtml + '</td>' +
+        '<td style="white-space:nowrap;">' +
+          (l.generada
+            ? ""
+            : '<button class="btn primary small lp-generar-btn" data-id="' + l.id + '" type="button" title="El programa asigna el folio automáticamente">Generar factura</button> ' +
+              '<button class="btn ghost small lp-facturado-btn" data-id="' + l.id + '" type="button" title="Ya la cargaste tú mismo en el SII con su folio real">Ya facturado (folio SII)</button> ' +
+              '<button class="btn ghost small lp-postergar-btn" data-id="' + l.id + '" type="button" title="Este mes no se factura — pasarla al mes siguiente">Postergar</button> ' +
+              '<button class="btn ghost small lp-del-btn" data-id="' + l.id + '" type="button" title="Eliminar">✕</button>'
+          ) +
+        '</td>' +
+        '</tr>';
+    }).join("");
+    totals.innerHTML = '<tr><td colspan="6" style="text-align:right; font-weight:700;">Total CLP estimado</td><td class="num tabular" style="font-weight:700;">' + fmtCLP(totalCLP) + '</td><td colspan="2"></td></tr>';
+    var hayPendientes = list.some(function(l){ return !l.generada; });
+    var hint = document.getElementById("presupuesto-facturado-hint");
+    if (hint) hint.style.display = hayPendientes ? "block" : "none";
+    body.querySelectorAll(".lp-monto-input").forEach(function(inp){
+      inp.addEventListener("change", function(){
+        updateLineaPresupuesto(inp.getAttribute("data-id"), inp.value);
+      });
+    });
+    body.querySelectorAll(".lp-generar-btn").forEach(function(btn){
+      btn.addEventListener("click", function(){ generarFacturaDesdePresupuesto(btn.getAttribute("data-id")); });
+    });
+    body.querySelectorAll(".lp-facturado-btn").forEach(function(btn){
+      btn.addEventListener("click", function(){ marcarLineaComoFacturada(btn.getAttribute("data-id")); });
+    });
+    body.querySelectorAll(".lp-postergar-btn").forEach(function(btn){
+      btn.addEventListener("click", function(){ postergarLineaPresupuesto(btn.getAttribute("data-id")); });
+    });
+    body.querySelectorAll(".lp-del-btn").forEach(function(btn){
+      btn.addEventListener("click", function(){ deleteLineaPresupuesto(btn.getAttribute("data-id")); });
+    });
+  }
+
+  // ---------- Presupuestado vs. facturado real, y proyección anual ----------
+  function renderPresupuestoVsReal(){
+    var body = document.getElementById("presupuesto-vs-real-body");
+    if (!body) return;
+    var anio = Number(state.presupuestoAnio);
+    var porCliente = {};
+    (state.presupuesto || []).filter(function(l){ return l.anio === anio; }).forEach(function(l){
+      var key = l.razonSocial;
+      if (!porCliente[key]) porCliente[key] = { presupuestado: 0, real: 0 };
+      porCliente[key].presupuestado += montoPresupuestadoDe(l);
+    });
+    (state.invoices || []).filter(function(f){ return f.emision && new Date(f.emision).getFullYear() === anio; }).forEach(function(f){
+      var key = f.razonSocial;
+      if (!porCliente[key]) porCliente[key] = { presupuestado: 0, real: 0 };
+      porCliente[key].real += facturadoDe(f);
+    });
+    var claves = Object.keys(porCliente).sort();
+    var tfoot = document.getElementById("presupuesto-vs-real-total");
+    if (!claves.length){
+      body.innerHTML = '<tr><td colspan="4" style="color:var(--muted); padding:18px 10px;">Sin datos todavía para ' + anio + '.</td></tr>';
+      if (tfoot) tfoot.innerHTML = "";
+      renderChartPresupuestoMensual(anio);
+      return;
+    }
+    body.innerHTML = claves.map(function(k){
+      var v = porCliente[k];
+      var dif = v.real - v.presupuestado;
+      var color = dif >= 0 ? "var(--good)" : "var(--critical)";
+      return '<tr>' +
+        '<td>' + k + '</td>' +
+        '<td class="num tabular">' + fmtCLP(v.presupuestado) + '</td>' +
+        '<td class="num tabular">' + fmtCLP(v.real) + '</td>' +
+        '<td class="num tabular" style="color:' + color + ';">' + (dif >= 0 ? "+" : "") + fmtCLP(dif) + '</td>' +
+        '</tr>';
+    }).join("");
+    if (tfoot){
+      var totPres = claves.reduce(function(s,k){ return s + porCliente[k].presupuestado; }, 0);
+      var totReal = claves.reduce(function(s,k){ return s + porCliente[k].real; }, 0);
+      var totDif = totReal - totPres;
+      var totColor = totDif >= 0 ? "var(--good)" : "var(--critical)";
+      tfoot.innerHTML = '<tr style="font-weight:600; border-top:2px solid var(--border, #333);">' +
+        '<td>Total ' + anio + '</td>' +
+        '<td class="num tabular">' + fmtCLP(totPres) + '</td>' +
+        '<td class="num tabular">' + fmtCLP(totReal) + '</td>' +
+        '<td class="num tabular" style="color:' + totColor + ';">' + (totDif >= 0 ? "+" : "") + fmtCLP(totDif) + '</td>' +
+        '</tr>';
+    }
+    renderChartPresupuestoMensual(anio);
+  }
+
+  function renderChartPresupuestoMensual(anio){
+    var svg = document.getElementById("chart-presupuesto-mensual");
+    if (!svg) return;
+    var presupPorMes = new Array(12).fill(0);
+    var realPorMes = new Array(12).fill(0);
+    (state.presupuesto || []).filter(function(l){ return l.anio === anio; }).forEach(function(l){
+      presupPorMes[l.mes - 1] += montoPresupuestadoDe(l);
+    });
+    (state.invoices || []).filter(function(f){ return f.emision && new Date(f.emision).getFullYear() === anio; }).forEach(function(f){
+      var mIdx = new Date(f.emision).getMonth();
+      realPorMes[mIdx] += facturadoDe(f);
+    });
+
+    var svgns = "http://www.w3.org/2000/svg";
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    var W = 760, H = 260;
+    var padL = 56, padR = 12, padT = 16, padB = 34;
+    var plotW = W - padL - padR, plotH = H - padT - padB;
+    svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+
+    var maxVal = Math.max.apply(null, presupPorMes.concat(realPorMes).concat([1]));
+    var niceMax = Math.ceil(maxVal / 1000000) * 1000000 || 1000000;
+    var ticks = 4;
+    for (var t = 0; t <= ticks; t++){
+      var val = niceMax * t / ticks;
+      var y = padT + plotH - (val / niceMax) * plotH;
+      var line = document.createElementNS(svgns, "line");
+      line.setAttribute("x1", padL); line.setAttribute("x2", W - padR);
+      line.setAttribute("y1", y); line.setAttribute("y2", y);
+      line.setAttribute("class", "grid-line");
+      svg.appendChild(line);
+      var label = document.createElementNS(svgns, "text");
+      label.setAttribute("x", padL - 8);
+      label.setAttribute("y", y + 3);
+      label.setAttribute("text-anchor", "end");
+      label.setAttribute("class", "axis-label");
+      label.textContent = val >= 1000000 ? (val/1000000).toFixed(val % 1000000 === 0 ? 0 : 1) + "M" : Math.round(val/1000) + "k";
+      svg.appendChild(label);
+    }
+
+    var groupW = plotW / 12;
+    var barGap = 3;
+    var barW = (groupW - barGap * 3) / 2;
+    var mesesCortos = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+    for (var i = 0; i < 12; i++){
+      var xGroup = padL + i * groupW;
+      var vPres = presupPorMes[i];
+      var vReal = realPorMes[i];
+      var hPres = niceMax > 0 ? (vPres / niceMax) * plotH : 0;
+      var hReal = niceMax > 0 ? (vReal / niceMax) * plotH : 0;
+
+      var rectPres = document.createElementNS(svgns, "rect");
+      rectPres.setAttribute("x", xGroup + barGap);
+      rectPres.setAttribute("y", padT + plotH - hPres);
+      rectPres.setAttribute("width", Math.max(barW, 2));
+      rectPres.setAttribute("height", Math.max(hPres, 0));
+      rectPres.setAttribute("rx", 2);
+      rectPres.setAttribute("fill", "var(--accent)");
+      var titlePres = document.createElementNS(svgns, "title");
+      titlePres.textContent = mesesCortos[i] + " — Presupuestado: " + fmtCLP(vPres);
+      rectPres.appendChild(titlePres);
+      svg.appendChild(rectPres);
+
+      var rectReal = document.createElementNS(svgns, "rect");
+      rectReal.setAttribute("x", xGroup + barGap * 2 + barW);
+      rectReal.setAttribute("y", padT + plotH - hReal);
+      rectReal.setAttribute("width", Math.max(barW, 2));
+      rectReal.setAttribute("height", Math.max(hReal, 0));
+      rectReal.setAttribute("rx", 2);
+      rectReal.setAttribute("fill", "var(--good)");
+      var titleReal = document.createElementNS(svgns, "title");
+      titleReal.textContent = mesesCortos[i] + " — Real: " + fmtCLP(vReal);
+      rectReal.appendChild(titleReal);
+      svg.appendChild(rectReal);
+
+      var labelMes = document.createElementNS(svgns, "text");
+      labelMes.setAttribute("x", xGroup + groupW / 2);
+      labelMes.setAttribute("y", H - padB + 16);
+      labelMes.setAttribute("text-anchor", "middle");
+      labelMes.setAttribute("class", "axis-label");
+      labelMes.textContent = mesesCortos[i];
+      svg.appendChild(labelMes);
+    }
+  }
+
+  function renderProyeccionAnual(){
+    var el = document.getElementById("proyeccion-anual-body");
+    if (!el) return;
+    var vigentes = (state.proyectos || []).filter(proyectoVigente).filter(function(pr){
+      var c = (state.clientesMaestro || []).find(function(x){ return x.id === pr.clienteId; });
+      return c && c.activo;
+    });
+    if (!vigentes.length){
+      el.innerHTML = '<span style="color:var(--muted);">Sin proyectos vigentes todavía.</span>';
+      return;
+    }
+    var mensualCLP = vigentes.reduce(function(s,pr){ return s + montoCLP(pr.montoMensual, pr.moneda); }, 0);
+    var anualCLP = mensualCLP * 12;
+    var porMoneda = {};
+    vigentes.forEach(function(pr){
+      porMoneda[pr.moneda] = (porMoneda[pr.moneda] || 0) + pr.montoMensual;
+    });
+    var detalle = Object.keys(porMoneda).map(function(m){
+      return m + " " + (m === "CLP" ? fmtCLP(porMoneda[m]) : porMoneda[m].toLocaleString("es-CL")) + "/mes";
+    }).join(" + ");
+    el.innerHTML =
+      '<div><strong>' + fmtCLP(mensualCLP) + '</strong> / mes con la tasa de cambio actual (' + vigentes.length + ' proyecto' + (vigentes.length === 1 ? "" : "s") + ' vigente' + (vigentes.length === 1 ? "" : "s") + ').</div>' +
+      '<div style="margin-top:4px;"><strong>' + fmtCLP(anualCLP) + '</strong> proyectado en los próximos 12 meses, si nada cambia.</div>' +
+      '<div style="margin-top:4px; font-size:12.5px; color:var(--text-secondary);">Desglose: ' + detalle + '.</div>';
   }
 
   // Marca "Anulada (NC)" las facturas cuyas NC cubren el total; las parciales
@@ -4894,6 +6705,13 @@
     renderReportes();
     renderCostos();
     renderSemaforo();
+    renderTasas();
+    renderPropuestas();
+    renderClientesMaestro();
+    renderProyectos();
+    renderPresupuesto();
+    renderPresupuestoVsReal();
+    renderProyeccionAnual();
     renderBell();
     refreshScrollArrows();
   }
@@ -5254,6 +7072,154 @@
     renderSemaforo();
   });
 
+  // ---------- Presupuesto: eventos ----------
+  document.getElementById("tasas-actualizar-btn").addEventListener("click", function(){
+    fetchTasasCambio();
+  });
+  document.getElementById("tasas-guardar-btn").addEventListener("click", function(){
+    guardarTasasManual({
+      fecha: new Date().toISOString().slice(0,10),
+      uf: document.getElementById("tasa-uf").value,
+      usd: document.getElementById("tasa-usd").value,
+      eur: document.getElementById("tasa-eur").value
+    });
+  });
+
+  document.getElementById("new-propuesta-form").addEventListener("submit", function(e){
+    e.preventDefault();
+    var ok = addPropuesta({
+      razonSocial: document.getElementById("pp-razon").value,
+      rut: document.getElementById("pp-rut").value,
+      glosa: document.getElementById("pp-glosa") ? document.getElementById("pp-glosa").value : "",
+      moneda: document.getElementById("pp-moneda").value,
+      montoMensual: document.getElementById("pp-monto").value,
+      fecha: document.getElementById("pp-fecha").value,
+      notas: document.getElementById("pp-notas").value
+    });
+    if (ok) e.target.reset();
+  });
+
+  document.getElementById("new-cliente-form").addEventListener("submit", function(e){
+    e.preventDefault();
+    var ok = addCliente({
+      razonSocial: document.getElementById("cl-razon").value,
+      rut: document.getElementById("cl-rut").value,
+      contactoNombre: document.getElementById("cl-contacto-nombre").value,
+      contactoEmail: document.getElementById("cl-contacto-email").value,
+      activo: true
+    });
+    if (ok) e.target.reset();
+  });
+
+  document.getElementById("new-proyecto-form").addEventListener("submit", function(e){
+    e.preventDefault();
+    var ok = addProyecto({
+      clienteId: document.getElementById("py-cliente").value,
+      glosa: document.getElementById("py-glosa").value,
+      moneda: document.getElementById("py-moneda").value,
+      montoMensual: document.getElementById("py-monto").value,
+      frecuenciaMeses: document.getElementById("py-frecuencia").value,
+      cuotas: document.getElementById("py-cuotas").value,
+      montoTotal: document.getElementById("py-montototal").value,
+      fechaTermino: document.getElementById("py-termino").value,
+      activo: true
+    });
+    if (ok) e.target.reset();
+  });
+
+  document.getElementById("export-clientes-maestro-csv-btn").addEventListener("click", function(){
+    exportTableCSV("table-clientes-maestro", "clientes-dmz");
+  });
+  document.getElementById("export-propuestas-csv-btn").addEventListener("click", function(){
+    exportTableCSV("table-propuestas", "pipeline-dmz");
+  });
+  document.getElementById("export-presupuesto-csv-btn").addEventListener("click", function(){
+    exportTableCSV("table-presupuesto", "presupuesto-dmz");
+  });
+
+  document.getElementById("presupuesto-anio").addEventListener("change", function(e){
+    state.presupuestoAnio = Number(e.target.value);
+    renderPresupuesto();
+    renderPresupuestoVsReal();
+    renderProyeccionAnual();
+  });
+  document.getElementById("presupuesto-mes").addEventListener("change", function(e){
+    state.presupuestoMes = Number(e.target.value);
+    renderPresupuesto();
+  });
+  document.getElementById("presupuesto-agregar-recurrentes-btn").addEventListener("click", function(){
+    materializarPresupuestoMes(Number(state.presupuestoAnio), Number(state.presupuestoMes));
+    savePresupuestoStore();
+    renderAll();
+    autoPublicarCambioCompartido();
+    showToast("Clientes recurrentes agregados al presupuesto del mes.");
+  });
+  document.getElementById("new-linea-presupuesto-form").addEventListener("submit", function(e){
+    e.preventDefault();
+    var ok = addLineaPresupuestoManual({
+      razonSocial: document.getElementById("lp-razon").value,
+      rut: document.getElementById("lp-rut").value,
+      glosa: document.getElementById("lp-glosa").value,
+      moneda: document.getElementById("lp-moneda").value,
+      monto: document.getElementById("lp-monto").value,
+      anio: state.presupuestoAnio,
+      mes: state.presupuestoMes
+    });
+    if (ok) e.target.reset();
+  });
+
+  document.getElementById("import-clientes-btn").addEventListener("click", function(){
+    var text = document.getElementById("import-clientes-paste").value;
+    if (text && text.trim()){ runImportClientes(text); return; }
+    var input = document.getElementById("import-clientes-file");
+    var file = input.files && input.files[0];
+    if (!file){ showImportClientesLog("Pega el contenido o selecciona un archivo primero.", true); return; }
+    var esExcel = /\.xlsx?$/i.test(file.name);
+    var reader = new FileReader();
+    reader.onerror = function(){ showImportClientesLog("No se pudo leer el archivo.", true); };
+    if (esExcel){
+      reader.onload = function(e){
+        try {
+          var wb = XLSX.read(new Uint8Array(e.target.result), { type: "array" });
+          var csv = XLSX.utils.sheet_to_csv(wb.Sheets[wb.SheetNames[0]]);
+          runImportClientes(csv);
+        } catch(err){
+          showImportClientesLog("No se pudo leer el archivo Excel: " + err.message, true);
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    } else {
+      reader.onload = function(e){ runImportClientes(String(e.target.result || "")); };
+      reader.readAsText(file, "utf-8");
+    }
+  });
+
+  document.getElementById("import-propuestas-btn").addEventListener("click", function(){
+    var text = document.getElementById("import-propuestas-paste").value;
+    if (text && text.trim()){ runImportPropuestas(text); return; }
+    var input = document.getElementById("import-propuestas-file");
+    var file = input.files && input.files[0];
+    if (!file){ showImportPropuestasLog("Pega el contenido o selecciona un archivo primero.", true); return; }
+    var esExcel = /\.xlsx?$/i.test(file.name);
+    var reader = new FileReader();
+    reader.onerror = function(){ showImportPropuestasLog("No se pudo leer el archivo.", true); };
+    if (esExcel){
+      reader.onload = function(e){
+        try {
+          var wb = XLSX.read(new Uint8Array(e.target.result), { type: "array" });
+          var csv = XLSX.utils.sheet_to_csv(wb.Sheets[wb.SheetNames[0]]);
+          runImportPropuestas(csv);
+        } catch(err){
+          showImportPropuestasLog("No se pudo leer el archivo Excel: " + err.message, true);
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    } else {
+      reader.onload = function(e){ runImportPropuestas(String(e.target.result || "")); };
+      reader.readAsText(file, "utf-8");
+    }
+  });
+
   document.getElementById("cartola-btn").addEventListener("click", function(){
     var input = document.getElementById("cartola-file");
     var file = input.files && input.files[0];
@@ -5415,6 +7381,31 @@
     document.getElementById("ej-publickey").value = state.emailjsConfig.publicKey;
   }
   pintarCamposEmailjs();
+
+  function pintarCamposPlantillas(){
+    document.getElementById("pl-cobranza-asunto").value = state.plantillasEmail.cobranzaAsunto;
+    document.getElementById("pl-cobranza-cuerpo").value = state.plantillasEmail.cobranzaCuerpo;
+    document.getElementById("pl-factura-asunto").value = state.plantillasEmail.facturaAsunto;
+    document.getElementById("pl-factura-cuerpo").value = state.plantillasEmail.facturaCuerpo;
+  }
+  pintarCamposPlantillas();
+  document.getElementById("plantillas-form").addEventListener("submit", function(e){
+    e.preventDefault();
+    state.plantillasEmail.cobranzaAsunto = document.getElementById("pl-cobranza-asunto").value;
+    state.plantillasEmail.cobranzaCuerpo = document.getElementById("pl-cobranza-cuerpo").value;
+    state.plantillasEmail.facturaAsunto = document.getElementById("pl-factura-asunto").value;
+    state.plantillasEmail.facturaCuerpo = document.getElementById("pl-factura-cuerpo").value;
+    savePlantillasEmailStore();
+    autoPublicarCambioCompartido();
+    showToast("Plantillas de correo guardadas.");
+  });
+  document.getElementById("pl-restaurar-btn").addEventListener("click", function(){
+    state.plantillasEmail = plantillasPorDefecto();
+    savePlantillasEmailStore();
+    pintarCamposPlantillas();
+    autoPublicarCambioCompartido();
+    showToast("Plantillas restauradas a las predeterminadas.");
+  });
 
   // Lee los 4 campos del formulario hacia state.githubConfig y los guarda en
   // este navegador. La usan tanto "Guardar configuración" como "Guardar y
