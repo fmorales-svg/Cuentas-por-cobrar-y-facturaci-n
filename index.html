@@ -1172,6 +1172,7 @@
       </p>
       <div class="panel-toolbar" style="margin-bottom:10px;">
         <select id="vg-anio"></select>
+        <button class="btn ghost small" id="sincronizar-backlog-btn" type="button" title="Crea/actualiza el Backlog a partir de las facturas ya emitidas en Facturas y Cobranza">↻ Backlog desde facturas emitidas</button>
         <button class="btn ghost small" id="export-vista-general-csv-btn" type="button">⬇ Descargar (Excel/CSV)</button>
       </div>
       <div class="table-scroll">
@@ -2780,6 +2781,78 @@
         });
       }
     });
+  }
+  // El Backlog es, en el fondo, toda propuesta que ya se aceptó — y la prueba
+  // de eso son las facturas que ya se han emitido en Facturas y Cobranza. En
+  // vez de pedirte que armes el Proyecto a mano, esto recorre state.invoices
+  // y para cada factura que todavía no está vinculada a una línea de
+  // presupuesto: busca (o crea) el Cliente por RUT, busca (o crea) el
+  // Proyecto por cliente+concepto, y deja el mes real de esa factura marcado
+  // como ya facturado (🔒) en la Vista general — igual que las columnas ya
+  // llenas de tu Excel. Es idempotente: se puede correr todas las veces que
+  // quieras, solo toca las facturas que aún no tenían línea propia.
+  function sincronizarBacklogDesdeFacturas(silencioso){
+    var clientesCreados = 0, proyectosCreados = 0, mesesVinculados = 0;
+    (state.invoices || []).forEach(function(f){
+      if (!f.rut || !f.emision || !f.folio) return;
+      var yaVinculada = (state.presupuesto || []).some(function(l){
+        return l.folio !== null && l.folio !== undefined && String(l.folio) === String(f.folio);
+      });
+      if (yaVinculada) return;
+      var rutNorm = normRUT(f.rut);
+      var cliente = (state.clientesMaestro || []).find(function(c){ return c.rut && normRUT(c.rut) === rutNorm; });
+      if (!cliente){
+        cliente = {
+          id: "cl" + (clienteSeq++) + "-" + Date.now(),
+          razonSocial: f.razonSocial || f.rut, rut: f.rut,
+          contactoNombre: "", contactoEmail: "", activo: true
+        };
+        state.clientesMaestro.push(cliente);
+        clientesCreados++;
+      }
+      var glosa = (f.concepto || "General").trim() || "General";
+      var proyecto = (state.proyectos || []).find(function(pr){ return pr.clienteId === cliente.id && pr.glosa === glosa; });
+      if (!proyecto){
+        var fInicio = new Date(f.emision + "T00:00:00");
+        proyecto = {
+          id: "py" + (proyectoSeq++) + "-" + Date.now(),
+          clienteId: cliente.id, glosa: glosa, moneda: "CLP", montoMensual: Math.round(f.total),
+          cuotas: 0, montoTotal: 0, frecuenciaMeses: 1,
+          anioInicio: fInicio.getFullYear(), mesInicio: fInicio.getMonth() + 1,
+          fechaTermino: "", activo: true, origenFacturas: true
+        };
+        state.proyectos.push(proyecto);
+        proyectosCreados++;
+      }
+      var fecha = new Date(f.emision + "T00:00:00");
+      var anio = fecha.getFullYear(), mes = fecha.getMonth() + 1;
+      var lineaPendiente = (state.presupuesto || []).find(function(l){
+        return l.proyectoId === proyecto.id && l.anio === anio && l.mes === mes && !l.generada;
+      });
+      if (lineaPendiente){
+        lineaPendiente.generada = true; lineaPendiente.folio = f.folio;
+        lineaPendiente.monto = Math.round(f.total); lineaPendiente.moneda = "CLP";
+      } else {
+        state.presupuesto.push({
+          id: "pp" + (presupuestoSeq++) + "-" + Date.now() + "-" + proyecto.id,
+          clienteId: cliente.id, proyectoId: proyecto.id, razonSocial: cliente.razonSocial, rut: cliente.rut,
+          glosa: glosa, anio: anio, mes: mes, monto: Math.round(f.total), moneda: "CLP",
+          manual: false, generada: true, folio: f.folio
+        });
+      }
+      mesesVinculados++;
+    });
+    if (clientesCreados || proyectosCreados || mesesVinculados){
+      saveClientesMaestroStore(); saveProyectosStore(); savePresupuestoStore();
+      renderAll();
+      autoPublicarCambioCompartido();
+    }
+    if (!silencioso){
+      showToast(mesesVinculados
+        ? ("Backlog sincronizado: " + proyectosCreados + " proyecto(s) y " + clientesCreados + " cliente(s) nuevos, " + mesesVinculados + " mes(es) vinculados a facturas reales.")
+        : "El Backlog ya está al día con las facturas emitidas — nada nuevo que vincular.");
+    }
+    return { clientesCreados: clientesCreados, proyectosCreados: proyectosCreados, mesesVinculados: mesesVinculados };
   }
   function addLineaPresupuestoManual(data){
     var razon = (data.razonSocial || "").trim();
@@ -7341,6 +7414,9 @@
     state.presupuestoAnio = Number(e.target.value);
     renderAll();
   });
+  document.getElementById("sincronizar-backlog-btn").addEventListener("click", function(){
+    sincronizarBacklogDesdeFacturas(false);
+  });
   document.getElementById("export-vista-general-csv-btn").addEventListener("click", function(){
     exportTableCSV("table-vista-general", "vista-general-dmz");
   });
@@ -7748,6 +7824,7 @@
     pintarCampoDrive();
     pintarCamposEmailjs();
     try { if (window.emailjs && state.emailjsConfig.publicKey) window.emailjs.init(state.emailjsConfig.publicKey); } catch(e){}
+    sincronizarBacklogDesdeFacturas(true);
     renderAll();
     renderDataSourceNote();
     iniciarAutoRefresh();
