@@ -1162,6 +1162,37 @@
   <section class="view" data-view="presupuesto" hidden>
     <section class="panel">
       <div class="panel-head">
+        <h2>Vista general (formato Excel)</h2>
+        <span class="hint">un renglón por proyecto/propuesta, con los 12 meses igual que tu planilla</span>
+      </div>
+      <p style="font-size:12px; color:var(--text-secondary); margin:0 0 10px; max-width:720px; line-height:1.6;">
+        Cada fila es un proyecto (Backlog) o una propuesta (Pipeline/Rechazada). Escribe el monto directamente en el
+        mes que corresponda — igual que en tu Excel — sin depender de una frecuencia fija. Los meses ya facturados
+        aparecen bloqueados (🔒) porque ya tienen una factura real asociada.
+      </p>
+      <div class="panel-toolbar" style="margin-bottom:10px;">
+        <select id="vg-anio"></select>
+        <button class="btn ghost small" id="export-vista-general-csv-btn" type="button">⬇ Descargar (Excel/CSV)</button>
+      </div>
+      <div class="table-scroll">
+        <table id="table-vista-general">
+          <thead>
+            <tr>
+              <th>N°</th><th>Cliente</th><th>RUT</th><th>Estado</th><th>Servicio</th>
+              <th class="num">Fee total</th><th class="num">Saldo</th>
+              <th class="num">Ene</th><th class="num">Feb</th><th class="num">Mar</th><th class="num">Abr</th>
+              <th class="num">May</th><th class="num">Jun</th><th class="num">Jul</th><th class="num">Ago</th>
+              <th class="num">Sep</th><th class="num">Oct</th><th class="num">Nov</th><th class="num">Dic</th>
+              <th class="num">Total</th>
+            </tr>
+          </thead>
+          <tbody id="vista-general-body"></tbody>
+          <tfoot id="vista-general-totals"></tfoot>
+        </table>
+      </div>
+    </section>
+    <section class="panel">
+      <div class="panel-head">
         <h2>Tipo de cambio</h2>
         <span class="hint" id="tasas-fecha-hint">sin actualizar</span>
       </div>
@@ -5730,6 +5761,152 @@
   // lectura acá) + Pipeline y Rechazada (= state.propuestas, editables). Una
   // propuesta "ganada" deja de listarse aparte porque ya aparece como su
   // cliente correspondiente — así no sale duplicada.
+  // Upsert directo de una celda mensual de la Vista general (formato Excel):
+  // escribe/edita el monto de un proyecto para ese año/mes sin pasar por
+  // frecuencia/materialización — igual que tipear en una celda del Excel.
+  function setLineaProyectoMes(proyectoId, anio, mes, valorTexto){
+    var pr = (state.proyectos || []).find(function(x){ return x.id === proyectoId; });
+    if (!pr) return;
+    var cliente = (state.clientesMaestro || []).find(function(c){ return c.id === pr.clienteId; });
+    if (!cliente) return;
+    var linea = (state.presupuesto || []).find(function(l){
+      return l.proyectoId === proyectoId && l.anio === anio && l.mes === mes;
+    });
+    if (linea && linea.generada){
+      showToast("Ese mes ya está facturado (folio " + linea.folio + ") — no se puede editar acá.");
+      renderVistaGeneral();
+      return;
+    }
+    var valor = Number(String(valorTexto).replace(/\./g,"").replace(",", "."));
+    if (!isFinite(valor) || valor <= 0){
+      if (linea){
+        state.presupuesto = state.presupuesto.filter(function(l){ return l !== linea; });
+        savePresupuestoStore();
+        renderAll();
+        autoPublicarCambioCompartido();
+      }
+      return;
+    }
+    if (linea){
+      linea.monto = Math.round(valor);
+    } else {
+      state.presupuesto.push({
+        id: "pp" + (presupuestoSeq++) + "-" + Date.now() + "-" + pr.id,
+        clienteId: cliente.id, proyectoId: pr.id, razonSocial: cliente.razonSocial, rut: cliente.rut,
+        glosa: pr.glosa, anio: anio, mes: mes, monto: Math.round(valor), moneda: pr.moneda,
+        manual: true, generada: false, folio: null
+      });
+    }
+    savePresupuestoStore();
+    renderAll();
+    autoPublicarCambioCompartido();
+  }
+
+  function renderVistaGeneral(){
+    var body = document.getElementById("vista-general-body");
+    if (!body) return;
+    var selAnio = document.getElementById("vg-anio");
+    if (selAnio && document.activeElement !== selAnio){
+      var actual = new Date().getFullYear();
+      var anios = [actual - 1, actual, actual + 1];
+      selAnio.innerHTML = anios.map(function(a){
+        return '<option value="' + a + '"' + (a === Number(state.presupuestoAnio) ? " selected" : "") + '>' + a + '</option>';
+      }).join("");
+    }
+    var anio = Number(state.presupuestoAnio);
+    var MESES_COL = 12;
+
+    var filasBacklog = (state.proyectos || []).map(function(pr){
+      var c = (state.clientesMaestro || []).find(function(x){ return x.id === pr.clienteId; });
+      if (!c) return null;
+      var meses = [];
+      for (var m = 1; m <= MESES_COL; m++){
+        var l = (state.presupuesto || []).find(function(x){ return x.proyectoId === pr.id && x.anio === anio && x.mes === m; });
+        meses.push(l || null);
+      }
+      var inactivo = !c.activo || !pr.activo;
+      var vencido = pr.fechaTermino && pr.fechaTermino < new Date().toISOString().slice(0,10);
+      var saldo = saldoProyecto(pr);
+      var totalFila = meses.reduce(function(s,l){ return s + (l ? Number(l.monto) || 0 : 0); }, 0);
+      return {
+        tipo: "backlog", id: pr.id, cliente: c.razonSocial, rut: c.rut || "",
+        estado: "Backlog" + (inactivo ? " (inactivo)" : "") + (vencido ? " (vencido)" : ""),
+        servicio: pr.glosa, moneda: pr.moneda,
+        feeTotal: pr.montoTotal || null, saldo: saldo,
+        meses: meses, totalFila: totalFila, editable: true
+      };
+    }).filter(Boolean).sort(function(a,b){ return a.cliente.localeCompare(b.cliente) || a.servicio.localeCompare(b.servicio); });
+
+    var filasPipeline = (state.propuestas || []).filter(function(p){ return p.estado !== "ganada"; }).map(function(p){
+      return {
+        tipo: p.estado === "perdida" ? "rechazada" : "pipeline", id: p.id, cliente: p.razonSocial, rut: p.rut || "",
+        estado: p.estado === "perdida" ? "Rechazada" : "Pipeline",
+        servicio: p.glosa || "", moneda: p.moneda,
+        feeTotal: p.montoMensual || null, saldo: null,
+        meses: new Array(MESES_COL).fill(null), totalFila: 0, editable: false
+      };
+    });
+
+    var orden = { backlog: 0, pipeline: 1, rechazada: 2 };
+    var list = filasBacklog.concat(filasPipeline).sort(function(a,b){ return orden[a.tipo] - orden[b.tipo]; });
+
+    if (!list.length){
+      body.innerHTML = '<tr><td colspan="19" style="color:var(--muted); padding:18px 10px;">Todavía no hay proyectos ni propuestas — agrégalos más abajo, en "Proyectos por cliente" o "Pipeline comercial".</td></tr>';
+      var totEl = document.getElementById("vista-general-totals");
+      if (totEl) totEl.innerHTML = "";
+      return;
+    }
+
+    var fmtMoneda = function(v, moneda){
+      if (v === null || v === undefined) return "";
+      return moneda === "CLP" ? fmtCLP(v) : v.toLocaleString("es-CL", { maximumFractionDigits: 2 });
+    };
+
+    body.innerHTML = list.map(function(r, idx){
+      var celdasMeses = r.meses.map(function(l, i){
+        if (!r.editable){
+          return '<td class="num tabular" style="color:var(--muted);">—</td>';
+        }
+        if (l && l.generada){
+          return '<td class="num tabular" style="color:var(--good);" title="Ya facturado (folio ' + l.folio + ')">🔒 ' + fmtMoneda(l.monto, r.moneda) + '</td>';
+        }
+        return '<td class="num tabular"><input type="text" class="vg-mes-input" data-id="' + r.id + '" data-mes="' + (i + 1) +
+          '" value="' + (l ? l.monto : "") + '" placeholder="—" style="width:64px; text-align:right;"></td>';
+      }).join("");
+      return '<tr data-id="' + r.id + '">' +
+        '<td class="tabular">' + (idx + 1) + '</td>' +
+        '<td>' + r.cliente + '</td>' +
+        '<td>' + r.rut + '</td>' +
+        '<td>' + r.estado + '</td>' +
+        '<td style="max-width:170px; white-space:normal;">' + r.servicio + '</td>' +
+        '<td class="num tabular">' + (r.feeTotal ? fmtMoneda(r.feeTotal, r.moneda) + " " + r.moneda : '<span style="color:var(--muted);">—</span>') + '</td>' +
+        '<td class="num tabular">' + (r.saldo === null ? '<span style="color:var(--muted);">—</span>' : (fmtMoneda(r.saldo, r.moneda) + " " + r.moneda)) + '</td>' +
+        celdasMeses +
+        '<td class="num tabular"><strong>' + fmtMoneda(r.totalFila, r.moneda) + (r.editable ? " " + r.moneda : "") + '</strong></td>' +
+        '</tr>';
+    }).join("");
+
+    body.querySelectorAll(".vg-mes-input").forEach(function(inp){
+      inp.addEventListener("change", function(){
+        setLineaProyectoMes(inp.getAttribute("data-id"), anio, Number(inp.getAttribute("data-mes")), inp.value);
+      });
+    });
+
+    var totEl = document.getElementById("vista-general-totals");
+    if (totEl){
+      var totalesMeses = new Array(MESES_COL).fill(0);
+      filasBacklog.forEach(function(r){
+        r.meses.forEach(function(l, i){ if (l) totalesMeses[i] += montoCLP(l.monto, r.moneda); });
+      });
+      var granTotal = totalesMeses.reduce(function(s,v){ return s + v; }, 0);
+      totEl.innerHTML = '<tr>' +
+        '<td colspan="7" style="font-weight:600;">Total mensual (CLP, todos los proyectos)</td>' +
+        totalesMeses.map(function(v){ return '<td class="num tabular" style="font-weight:600;">' + fmtCLP(v) + '</td>'; }).join("") +
+        '<td class="num tabular" style="font-weight:700;">' + fmtCLP(granTotal) + '</td>' +
+        '</tr>';
+    }
+  }
+
   function renderPropuestas(){
     var body = document.getElementById("propuestas-body");
     if (!body) return;
@@ -6732,6 +6909,7 @@
     renderPropuestas();
     renderClientesMaestro();
     renderProyectos();
+    renderVistaGeneral();
     renderPresupuesto();
     renderPresupuestoVsReal();
     renderProyeccionAnual();
@@ -7158,6 +7336,13 @@
   });
   document.getElementById("export-presupuesto-csv-btn").addEventListener("click", function(){
     exportTableCSV("table-presupuesto", "presupuesto-dmz");
+  });
+  document.getElementById("vg-anio").addEventListener("change", function(e){
+    state.presupuestoAnio = Number(e.target.value);
+    renderAll();
+  });
+  document.getElementById("export-vista-general-csv-btn").addEventListener("click", function(){
+    exportTableCSV("table-vista-general", "vista-general-dmz");
   });
 
   document.getElementById("presupuesto-anio").addEventListener("change", function(e){
