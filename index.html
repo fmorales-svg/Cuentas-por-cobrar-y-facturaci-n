@@ -849,6 +849,11 @@
   }
   @media (max-width: 900px){ .aging-grid{ grid-template-columns: repeat(2,1fr); } }
   @media (max-width: 460px){ .aging-grid{ grid-template-columns: 1fr; } }
+  .pipeline-resumen-grid{ grid-template-columns: repeat(3,1fr); }
+  @media (max-width: 640px){ .pipeline-resumen-grid{ grid-template-columns: 1fr; } }
+  .pipeline-resumen-grid .aging-card{ cursor: pointer; transition: box-shadow .15s; }
+  .pipeline-resumen-grid .aging-card:hover{ box-shadow: 0 0 0 2px var(--accent) inset; }
+  .pipeline-resumen-grid .aging-card.activo{ box-shadow: 0 0 0 2px var(--accent) inset; }
   .aging-total{
     display:flex; align-items:baseline; gap:8px; margin-bottom:10px;
     font-size:13px; color: var(--text-secondary);
@@ -1181,116 +1186,100 @@
         <button class="btn primary small" id="tasas-actualizar-btn" type="button">↻ Actualizar automático</button>
       </div>
     </section>
-
     <section class="panel">
       <div class="panel-head">
-        <h2>Pipeline comercial</h2>
-        <span class="hint">Backlog = ya son clientes (abajo) · Pipeline = en conversación · Rechazada = no se ganó, queda el historial</span>
+        <h2>Presupuestado vs. facturado real</h2>
+        <span class="hint">por cliente, en lo que va del año elegido arriba en Presupuesto mensual</span>
       </div>
-      <form class="settings-form" id="new-propuesta-form" style="max-width:760px; gap:12px;">
-        <div style="display:flex; gap:10px; flex-wrap:wrap;">
-          <div class="field" style="flex:2; min-width:180px;">
-            <label for="pp-razon">Prospecto / razón social</label>
-            <input type="text" id="pp-razon" placeholder="Ej: Nueva Empresa SPA">
-          </div>
-          <div class="field" style="flex:1; min-width:130px;">
-            <label for="pp-rut">RUT (opcional)</label>
-            <input type="text" id="pp-rut" placeholder="Ej: 77.111.222-3">
-          </div>
-          <div class="field" style="flex:1; min-width:160px;">
-            <label for="pp-glosa">Glosa / proyecto</label>
-            <input type="text" id="pp-glosa" placeholder="Ej: Auditoría anual">
-          </div>
-          <div class="field" style="flex:1; min-width:100px;">
-            <label for="pp-moneda">Moneda</label>
-            <select id="pp-moneda"><option>CLP</option><option>UF</option><option>USD</option><option>EUR</option></select>
-          </div>
-          <div class="field" style="flex:1; min-width:130px;">
-            <label for="pp-monto">Monto mensual</label>
-            <input type="number" id="pp-monto" min="0" step="1" placeholder="0">
-          </div>
-          <div class="field" style="flex:1; min-width:130px;">
-            <label for="pp-fecha">Fecha propuesta</label>
-            <input type="date" id="pp-fecha">
-          </div>
-          <div class="field" style="flex:2; min-width:200px;">
-            <label for="pp-notas">Notas</label>
-            <input type="text" id="pp-notas" placeholder="Ej: esperando respuesta">
-          </div>
-        </div>
-        <div style="display:flex; gap:8px;">
-          <button class="btn primary small" type="submit">Agregar propuesta</button>
-          <button class="btn ghost small" id="export-propuestas-csv-btn" type="button">⬇ Descargar (Excel/CSV)</button>
-        </div>
-      </form>
-      <div id="pipeline-resumen-montos" style="margin:14px 0; font-size:13px;"></div>
-      <div class="table-scroll" style="margin-top:14px;">
-        <table id="table-propuestas">
-          <thead>
-            <tr><th>Fecha</th><th>Cliente / prospecto</th><th>RUT</th><th>Moneda</th><th class="num">Monto mensual</th><th>Estado</th><th>Notas</th><th></th></tr>
-          </thead>
-          <tbody id="propuestas-body"></tbody>
-        </table>
-      </div>
-      <details style="margin-top:14px;">
-        <summary style="cursor:pointer; font-size:13px; color:var(--text-secondary);">+ Importar Pipeline / Rechazadas desde Excel</summary>
-        <p style="font-size:13px; color:var(--text-secondary); max-width:620px; line-height:1.6; margin-top:10px;">
-          Columnas: Razón social, RUT, Glosa (nombre del proyecto), Moneda (CLP/UF/USD/EUR), Monto mensual, Fecha,
-          Estado (Pipeline / Rechazada / Backlog), Notas — con la primera fila de encabezados. Si pones "Backlog" en
-          Estado, esa fila se carga directamente como cliente activo (o le agrega un proyecto si el cliente ya existe).
-        </p>
-        <input type="file" id="import-propuestas-file" accept=".csv,.xlsx,.xls" />
-        <textarea id="import-propuestas-paste" class="import-paste" rows="6" placeholder="O pega aquí el contenido del CSV/Excel..."></textarea>
-        <div style="margin-top:10px;">
-          <button class="btn primary small" id="import-propuestas-btn" type="button">Importar</button>
-        </div>
-        <div class="import-log" id="import-propuestas-log" hidden></div>
-      </details>
-    </section>
-
-    <section class="panel">
-      <div class="panel-head">
-        <h2>Backlog — Clientes (base para presupuesto)</h2>
-        <span class="hint" id="clientes-maestro-count">0 clientes</span>
-      </div>
-      <form class="settings-form" id="new-cliente-form" style="max-width:700px; gap:12px;">
-        <div style="display:flex; gap:10px; flex-wrap:wrap;">
-          <div class="field" style="flex:2; min-width:180px;">
-            <label for="cl-razon">Razón social</label>
-            <input type="text" id="cl-razon" placeholder="Ej: Comercial Vargas SPA">
-          </div>
-          <div class="field" style="flex:1; min-width:130px;">
-            <label for="cl-rut">RUT</label>
-            <input type="text" id="cl-rut" placeholder="Ej: 76.111.222-3">
-          </div>
-          <div class="field" style="flex:1; min-width:160px;">
-            <label for="cl-contacto-nombre">Contacto (nombre)</label>
-            <input type="text" id="cl-contacto-nombre" placeholder="Ej: María Pérez">
-          </div>
-          <div class="field" style="flex:1; min-width:180px;">
-            <label for="cl-contacto-email">Contacto (correo)</label>
-            <input type="email" id="cl-contacto-email" placeholder="Ej: maria@cliente.cl">
-          </div>
-        </div>
-        <div style="display:flex; gap:8px;">
-          <button class="btn primary small" type="submit">Guardar cliente</button>
-          <button class="btn ghost small" id="export-clientes-maestro-csv-btn" type="button">⬇ Descargar (Excel/CSV)</button>
-        </div>
-      </form>
-      <p style="font-size:12.5px; color:var(--text-secondary); margin-top:10px;">
-        La moneda y el monto mensual se cargan por <strong>Proyecto</strong>, más abajo — un mismo cliente puede tener
-        más de uno (ej. "Auditoría anual" y "Asesoría mensual" con montos distintos).
+            <p style="font-size:12px; color:var(--text-secondary); margin:0 0 10px;">
+        Vista anual — no cambia con el mes que elijas más abajo en "Presupuesto mensual", solo con el año.
       </p>
-      <div class="table-scroll" style="margin-top:10px;">
-        <table id="table-clientes-maestro">
+      <div class="table-scroll">
+        <table id="table-presupuesto-vs-real">
           <thead>
-            <tr><th>Razón social</th><th>RUT</th><th>Contacto</th><th>Correo</th><th>Activo</th><th></th></tr>
+            <tr><th>Cliente</th><th class="num">Presupuestado</th><th class="num">Real</th><th class="num">Dif.</th></tr>
           </thead>
-          <tbody id="clientes-maestro-body"></tbody>
+          <tbody id="presupuesto-vs-real-body"></tbody>
+          <tfoot id="presupuesto-vs-real-total"></tfoot>
+        </table>
+      </div>
+      <div style="overflow-x:auto; position:relative; margin-top:16px;">
+        <svg id="chart-presupuesto-mensual" viewBox="0 0 760 260" role="img" aria-label="Presupuestado vs. facturado real por mes" style="display:block; min-width:460px; width:100%; height:auto;"></svg>
+      </div>
+      <div style="display:flex; gap:16px; font-size:12.5px; color:var(--text-secondary); margin-top:6px;">
+        <span><span style="display:inline-block; width:10px; height:10px; border-radius:2px; background:var(--accent); margin-right:5px;"></span>Presupuestado</span>
+        <span><span style="display:inline-block; width:10px; height:10px; border-radius:2px; background:var(--good); margin-right:5px;"></span>Facturado real</span>
+      </div>
+    </section>
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Proyección anual</h2>
+        <span class="hint">si nada cambia, esto deberías facturar en los próximos 12 meses</span>
+      </div>
+      <div id="proyeccion-anual-body" style="font-size:14px; line-height:1.8;"></div>
+    </section>
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Presupuesto mensual</h2>
+        <span class="hint">arma el mes, ajusta montos si hace falta y genera la factura real en CLP</span>
+      </div>
+      <div class="panel-toolbar" style="margin-bottom:10px;">
+        <select id="presupuesto-anio"></select>
+        <select id="presupuesto-mes">
+          <option value="1">Enero</option><option value="2">Febrero</option><option value="3">Marzo</option>
+          <option value="4">Abril</option><option value="5">Mayo</option><option value="6">Junio</option>
+          <option value="7">Julio</option><option value="8">Agosto</option><option value="9">Septiembre</option>
+          <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
+        </select>
+        <button class="btn ghost small" id="presupuesto-agregar-recurrentes-btn" type="button">+ Agregar proyectos vigentes de este mes</button>
+        <button class="btn ghost small" id="export-presupuesto-csv-btn" type="button">⬇ Descargar (Excel/CSV)</button>
+      </div>
+      <details style="margin-bottom:10px;">
+        <summary style="cursor:pointer; font-size:13px; color:var(--text-secondary);">+ Agregar línea manual (cliente puntual de este mes)</summary>
+        <form class="settings-form" id="new-linea-presupuesto-form" style="max-width:820px; gap:12px; margin-top:10px;">
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <div class="field" style="flex:2; min-width:180px;">
+              <label for="lp-razon">Cliente</label>
+              <input type="text" id="lp-razon" placeholder="Razón social">
+            </div>
+            <div class="field" style="flex:1; min-width:130px;">
+              <label for="lp-rut">RUT</label>
+              <input type="text" id="lp-rut" placeholder="RUT">
+            </div>
+            <div class="field" style="flex:2; min-width:160px;">
+              <label for="lp-glosa">Glosa (opcional)</label>
+              <input type="text" id="lp-glosa" placeholder="Ej: Trabajo puntual septiembre">
+            </div>
+            <div class="field" style="flex:1; min-width:100px;">
+              <label for="lp-moneda">Moneda</label>
+              <select id="lp-moneda"><option>CLP</option><option>UF</option><option>USD</option><option>EUR</option></select>
+            </div>
+            <div class="field" style="flex:1; min-width:130px;">
+              <label for="lp-monto">Monto</label>
+              <input type="number" id="lp-monto" min="0" step="1" placeholder="0">
+            </div>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button class="btn primary small" type="submit">Agregar línea</button>
+          </div>
+        </form>
+      </details>
+      <div id="presupuesto-resumen-pendiente" style="display:flex; gap:24px; flex-wrap:wrap; font-size:13.5px; margin-bottom:12px;"></div>
+      <p id="presupuesto-facturado-hint" style="display:none; font-size:12.5px; color:var(--text-secondary); margin-bottom:10px;">
+        💡 Cuando cargues una de estas facturas directamente en el SII, vuelve aquí y presiona
+        <strong>"Ya facturado (folio SII)"</strong> ingresando el folio real — así pasa a Facturas y Cobranza sin
+        duplicar folios. Si prefieres que el programa numere la factura por ti, usa "Generar factura".
+      </p>
+      <div class="table-scroll">
+        <table id="table-presupuesto">
+          <thead>
+            <tr><th>Cliente</th><th>Glosa</th><th>RUT</th><th>Moneda</th><th class="num">Monto</th><th class="num">Tasa</th><th class="num">Total CLP estimado</th><th>Estado</th><th></th></tr>
+          </thead>
+          <tbody id="presupuesto-body"></tbody>
+          <tfoot id="presupuesto-totals"></tfoot>
         </table>
       </div>
     </section>
-
     <section class="panel">
       <div class="panel-head">
         <h2>Proyectos por cliente</h2>
@@ -1356,101 +1345,119 @@
         </table>
       </div>
     </section>
-
     <section class="panel">
       <div class="panel-head">
-        <h2>Presupuesto mensual</h2>
-        <span class="hint">arma el mes, ajusta montos si hace falta y genera la factura real en CLP</span>
+        <h2>Backlog — Clientes (base para presupuesto)</h2>
+        <span class="hint" id="clientes-maestro-count">0 clientes</span>
       </div>
-      <div class="panel-toolbar" style="margin-bottom:10px;">
-        <select id="presupuesto-anio"></select>
-        <select id="presupuesto-mes">
-          <option value="1">Enero</option><option value="2">Febrero</option><option value="3">Marzo</option>
-          <option value="4">Abril</option><option value="5">Mayo</option><option value="6">Junio</option>
-          <option value="7">Julio</option><option value="8">Agosto</option><option value="9">Septiembre</option>
-          <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
-        </select>
-        <button class="btn ghost small" id="presupuesto-agregar-recurrentes-btn" type="button">+ Agregar proyectos vigentes de este mes</button>
-        <button class="btn ghost small" id="export-presupuesto-csv-btn" type="button">⬇ Descargar (Excel/CSV)</button>
-      </div>
-      <details style="margin-bottom:10px;">
-        <summary style="cursor:pointer; font-size:13px; color:var(--text-secondary);">+ Agregar línea manual (cliente puntual de este mes)</summary>
-        <form class="settings-form" id="new-linea-presupuesto-form" style="max-width:820px; gap:12px; margin-top:10px;">
-          <div style="display:flex; gap:10px; flex-wrap:wrap;">
-            <div class="field" style="flex:2; min-width:180px;">
-              <label for="lp-razon">Cliente</label>
-              <input type="text" id="lp-razon" placeholder="Razón social">
-            </div>
-            <div class="field" style="flex:1; min-width:130px;">
-              <label for="lp-rut">RUT</label>
-              <input type="text" id="lp-rut" placeholder="RUT">
-            </div>
-            <div class="field" style="flex:2; min-width:160px;">
-              <label for="lp-glosa">Glosa (opcional)</label>
-              <input type="text" id="lp-glosa" placeholder="Ej: Trabajo puntual septiembre">
-            </div>
-            <div class="field" style="flex:1; min-width:100px;">
-              <label for="lp-moneda">Moneda</label>
-              <select id="lp-moneda"><option>CLP</option><option>UF</option><option>USD</option><option>EUR</option></select>
-            </div>
-            <div class="field" style="flex:1; min-width:130px;">
-              <label for="lp-monto">Monto</label>
-              <input type="number" id="lp-monto" min="0" step="1" placeholder="0">
-            </div>
+      <form class="settings-form" id="new-cliente-form" style="max-width:700px; gap:12px;">
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <div class="field" style="flex:2; min-width:180px;">
+            <label for="cl-razon">Razón social</label>
+            <input type="text" id="cl-razon" placeholder="Ej: Comercial Vargas SPA">
           </div>
-          <div style="display:flex; gap:8px;">
-            <button class="btn primary small" type="submit">Agregar línea</button>
+          <div class="field" style="flex:1; min-width:130px;">
+            <label for="cl-rut">RUT</label>
+            <input type="text" id="cl-rut" placeholder="Ej: 76.111.222-3">
           </div>
-        </form>
-      </details>
-      <div id="presupuesto-resumen-pendiente" style="display:flex; gap:24px; flex-wrap:wrap; font-size:13.5px; margin-bottom:12px;"></div>
-      <p id="presupuesto-facturado-hint" style="display:none; font-size:12.5px; color:var(--text-secondary); margin-bottom:10px;">
-        💡 Cuando cargues una de estas facturas directamente en el SII, vuelve aquí y presiona
-        <strong>"Ya facturado (folio SII)"</strong> ingresando el folio real — así pasa a Facturas y Cobranza sin
-        duplicar folios. Si prefieres que el programa numere la factura por ti, usa "Generar factura".
+          <div class="field" style="flex:1; min-width:160px;">
+            <label for="cl-contacto-nombre">Contacto (nombre)</label>
+            <input type="text" id="cl-contacto-nombre" placeholder="Ej: María Pérez">
+          </div>
+          <div class="field" style="flex:1; min-width:180px;">
+            <label for="cl-contacto-email">Contacto (correo)</label>
+            <input type="email" id="cl-contacto-email" placeholder="Ej: maria@cliente.cl">
+          </div>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn primary small" type="submit">Guardar cliente</button>
+          <button class="btn ghost small" id="export-clientes-maestro-csv-btn" type="button">⬇ Descargar (Excel/CSV)</button>
+        </div>
+      </form>
+      <p style="font-size:12.5px; color:var(--text-secondary); margin-top:10px;">
+        La moneda y el monto mensual se cargan por <strong>Proyecto</strong>, más abajo — un mismo cliente puede tener
+        más de uno (ej. "Auditoría anual" y "Asesoría mensual" con montos distintos).
       </p>
-      <div class="table-scroll">
-        <table id="table-presupuesto">
+      <div class="table-scroll" style="margin-top:10px;">
+        <table id="table-clientes-maestro">
           <thead>
-            <tr><th>Cliente</th><th>Glosa</th><th>RUT</th><th>Moneda</th><th class="num">Monto</th><th class="num">Tasa</th><th class="num">Total CLP estimado</th><th>Estado</th><th></th></tr>
+            <tr><th>Razón social</th><th>RUT</th><th>Contacto</th><th>Correo</th><th>Activo</th><th></th></tr>
           </thead>
-          <tbody id="presupuesto-body"></tbody>
-          <tfoot id="presupuesto-totals"></tfoot>
+          <tbody id="clientes-maestro-body"></tbody>
         </table>
       </div>
     </section>
-
     <section class="panel">
       <div class="panel-head">
-        <h2>Presupuestado vs. facturado real</h2>
-        <span class="hint">por cliente, en lo que va del año elegido arriba en Presupuesto mensual</span>
+        <h2>Pipeline comercial</h2>
+        <span class="hint">Backlog = ya son clientes (abajo) · Pipeline = en conversación · Rechazada = no se ganó, queda el historial</span>
       </div>
-      <div class="table-scroll">
-        <table id="table-presupuesto-vs-real">
+      <form class="settings-form" id="new-propuesta-form" style="max-width:760px; gap:12px;">
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <div class="field" style="flex:2; min-width:180px;">
+            <label for="pp-razon">Prospecto / razón social</label>
+            <input type="text" id="pp-razon" placeholder="Ej: Nueva Empresa SPA">
+          </div>
+          <div class="field" style="flex:1; min-width:130px;">
+            <label for="pp-rut">RUT (opcional)</label>
+            <input type="text" id="pp-rut" placeholder="Ej: 77.111.222-3">
+          </div>
+          <div class="field" style="flex:1; min-width:160px;">
+            <label for="pp-glosa">Glosa / proyecto</label>
+            <input type="text" id="pp-glosa" placeholder="Ej: Auditoría anual">
+          </div>
+          <div class="field" style="flex:1; min-width:100px;">
+            <label for="pp-moneda">Moneda</label>
+            <select id="pp-moneda"><option>CLP</option><option>UF</option><option>USD</option><option>EUR</option></select>
+          </div>
+          <div class="field" style="flex:1; min-width:130px;">
+            <label for="pp-monto">Monto mensual</label>
+            <input type="number" id="pp-monto" min="0" step="1" placeholder="0">
+          </div>
+          <div class="field" style="flex:1; min-width:130px;">
+            <label for="pp-fecha">Fecha propuesta</label>
+            <input type="date" id="pp-fecha">
+          </div>
+          <div class="field" style="flex:2; min-width:200px;">
+            <label for="pp-notas">Notas</label>
+            <input type="text" id="pp-notas" placeholder="Ej: esperando respuesta">
+          </div>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn primary small" type="submit">Agregar propuesta</button>
+          <button class="btn ghost small" id="export-propuestas-csv-btn" type="button">⬇ Descargar (Excel/CSV)</button>
+        </div>
+      </form>
+      <div class="panel-toolbar" style="margin:14px 0 10px;">
+        <button class="chip" data-pp-filtro="todos" aria-pressed="true" type="button">Todos</button>
+        <button class="chip" data-pp-filtro="backlog" aria-pressed="false" type="button">Backlog</button>
+        <button class="chip" data-pp-filtro="pipeline" aria-pressed="false" type="button">Pipeline</button>
+        <button class="chip" data-pp-filtro="rechazada" aria-pressed="false" type="button">Rechazada</button>
+      </div>
+      <div class="aging-grid pipeline-resumen-grid" id="pipeline-resumen-montos"></div>
+      <div class="table-scroll" style="margin-top:14px;">
+        <table id="table-propuestas">
           <thead>
-            <tr><th>Cliente</th><th class="num">Presupuestado</th><th class="num">Real</th><th class="num">Dif.</th></tr>
+            <tr><th>Fecha</th><th>Cliente / prospecto</th><th>RUT</th><th>Moneda</th><th class="num">Monto mensual</th><th>Estado</th><th>Notas</th><th></th></tr>
           </thead>
-          <tbody id="presupuesto-vs-real-body"></tbody>
-          <tfoot id="presupuesto-vs-real-total"></tfoot>
+          <tbody id="propuestas-body"></tbody>
         </table>
       </div>
-      <div style="overflow-x:auto; position:relative; margin-top:16px;">
-        <svg id="chart-presupuesto-mensual" viewBox="0 0 760 260" role="img" aria-label="Presupuestado vs. facturado real por mes" style="display:block; min-width:460px; width:100%; height:auto;"></svg>
-      </div>
-      <div style="display:flex; gap:16px; font-size:12.5px; color:var(--text-secondary); margin-top:6px;">
-        <span><span style="display:inline-block; width:10px; height:10px; border-radius:2px; background:var(--accent); margin-right:5px;"></span>Presupuestado</span>
-        <span><span style="display:inline-block; width:10px; height:10px; border-radius:2px; background:var(--good); margin-right:5px;"></span>Facturado real</span>
-      </div>
+      <details style="margin-top:14px;">
+        <summary style="cursor:pointer; font-size:13px; color:var(--text-secondary);">+ Importar Pipeline / Rechazadas desde Excel</summary>
+        <p style="font-size:13px; color:var(--text-secondary); max-width:620px; line-height:1.6; margin-top:10px;">
+          Columnas: Razón social, RUT, Glosa (nombre del proyecto), Moneda (CLP/UF/USD/EUR), Monto mensual, Fecha,
+          Estado (Pipeline / Rechazada / Backlog), Notas — con la primera fila de encabezados. Si pones "Backlog" en
+          Estado, esa fila se carga directamente como cliente activo (o le agrega un proyecto si el cliente ya existe).
+        </p>
+        <input type="file" id="import-propuestas-file" accept=".csv,.xlsx,.xls" />
+        <textarea id="import-propuestas-paste" class="import-paste" rows="6" placeholder="O pega aquí el contenido del CSV/Excel..."></textarea>
+        <div style="margin-top:10px;">
+          <button class="btn primary small" id="import-propuestas-btn" type="button">Importar</button>
+        </div>
+        <div class="import-log" id="import-propuestas-log" hidden></div>
+      </details>
     </section>
-
-    <section class="panel">
-      <div class="panel-head">
-        <h2>Proyección anual</h2>
-        <span class="hint">si nada cambia, esto deberías facturar en los próximos 12 meses</span>
-      </div>
-      <div id="proyeccion-anual-body" style="font-size:14px; line-height:1.8;"></div>
-    </section>
-
     <section class="panel">
       <div class="panel-head"><h2>Importar clientes desde Excel</h2></div>
       <p style="font-size:13px; color:var(--text-secondary); max-width:620px; line-height:1.6;">
@@ -2542,10 +2549,20 @@
     };
     state.proyectos.push(proyecto);
     saveProyectosStore();
+    // El Presupuesto mensual arranca reflejando el Backlog desde el primer
+    // momento — no hay que apretar "+ Agregar proyectos vigentes" a mano
+    // cada vez que se suma un cliente/proyecto nuevo. Se materializa el mes
+    // actual (y el mes en que arranca, si es distinto) apenas se crea.
+    var hoyAnio = new Date().getFullYear(), hoyMes = new Date().getMonth() + 1;
+    materializarPresupuestoMes(hoyAnio, hoyMes);
+    if (proyecto.anioInicio !== hoyAnio || proyecto.mesInicio !== hoyMes){
+      materializarPresupuestoMes(proyecto.anioInicio, proyecto.mesInicio);
+    }
+    savePresupuestoStore();
     if (!silencioso){
       renderAll();
       autoPublicarCambioCompartido();
-      showToast("Proyecto agregado a " + cliente.razonSocial + ": " + proyecto.glosa + ".");
+      showToast("Proyecto agregado a " + cliente.razonSocial + ": " + proyecto.glosa + " (ya en el Presupuesto de este mes).");
     }
     return true;
   }
@@ -5735,43 +5752,49 @@
         montoMensual: p.montoMensual, notas: notas };
     });
     var orden = { backlog: 0, pipeline: 1, rechazada: 2 };
-    var list = backlogRows.concat(pipelineRows).sort(function(a,b){
+    var listCompleta = backlogRows.concat(pipelineRows).sort(function(a,b){
       return (orden[a.tipo] - orden[b.tipo]) || a.razonSocial.localeCompare(b.razonSocial);
     });
 
-    // % de cada estado por monto (no por cantidad de filas) — para ver de un
-    // vistazo cuánto peso en plata tiene el Backlog vs. lo que todavía está
-    // en conversación vs. lo que se rechazó, con la tasa de cambio vigente.
+    // Tarjetas por estado — monto y % de cada uno (Backlog vs. Pipeline vs.
+    // Rechazada), y funcionan también como filtro: clic en una tarjeta (o en
+    // los chips de arriba) deja la tabla mostrando solo ese estado.
+    var ETIQUETAS = { backlog: "Backlog", pipeline: "Pipeline", rechazada: "Rechazada" };
+    var CLASE_BANDA = { backlog: "b0", pipeline: "b1", rechazada: "b2" };
     var resumenEl = document.getElementById("pipeline-resumen-montos");
     if (resumenEl){
       var montoPorTipo = { backlog: 0, pipeline: 0, rechazada: 0 };
-      list.forEach(function(r){ montoPorTipo[r.tipo] += montoCLP(r.montoMensual, r.moneda); });
+      var countPorTipo = { backlog: 0, pipeline: 0, rechazada: 0 };
+      listCompleta.forEach(function(r){ montoPorTipo[r.tipo] += montoCLP(r.montoMensual, r.moneda); countPorTipo[r.tipo]++; });
       var granTotal = montoPorTipo.backlog + montoPorTipo.pipeline + montoPorTipo.rechazada;
-      if (!granTotal){
-        resumenEl.innerHTML = "";
-      } else {
-        var COLORES = { backlog: "var(--good)", pipeline: "var(--accent)", rechazada: "var(--critical)" };
-        var ETIQUETAS = { backlog: "Backlog", pipeline: "Pipeline", rechazada: "Rechazada" };
-        var segmentos = ["backlog","pipeline","rechazada"].map(function(t){
-          var pct = granTotal ? (montoPorTipo[t] / granTotal * 100) : 0;
-          return { t: t, pct: pct };
+      resumenEl.innerHTML = ["backlog","pipeline","rechazada"].map(function(t){
+        var pct = granTotal ? Math.round(montoPorTipo[t] / granTotal * 100) : 0;
+        var activo = state.pipelineFiltro === t;
+        return '<div class="aging-card ' + CLASE_BANDA[t] + (activo ? " activo" : "") + '" data-pp-card="' + t + '">' +
+          '<div class="band">' + ETIQUETAS[t] + ' · ' + pct + '%</div>' +
+          '<div class="amt tabular">' + fmtCLP(montoPorTipo[t]) + '</div>' +
+          '<div class="n">' + countPorTipo[t] + (countPorTipo[t] === 1 ? " ítem" : " ítems") + '</div>' +
+          '</div>';
+      }).join("");
+      resumenEl.querySelectorAll("[data-pp-card]").forEach(function(card){
+        card.addEventListener("click", function(){
+          var t = card.getAttribute("data-pp-card");
+          state.pipelineFiltro = state.pipelineFiltro === t ? "todos" : t;
+          renderPropuestas();
         });
-        var barra = segmentos.filter(function(s){ return s.pct > 0; }).map(function(s){
-          return '<div style="width:' + s.pct.toFixed(1) + '%; background:' + COLORES[s.t] + ';" title="' + ETIQUETAS[s.t] + ": " + s.pct.toFixed(1) + '%"></div>';
-        }).join("");
-        var leyenda = segmentos.map(function(s){
-          return '<span style="display:inline-flex; align-items:center; gap:5px; margin-right:16px;">' +
-            '<span style="width:10px; height:10px; border-radius:2px; background:' + COLORES[s.t] + '; display:inline-block;"></span>' +
-            ETIQUETAS[s.t] + ': ' + s.pct.toFixed(0) + '% (' + fmtCLP(montoPorTipo[s.t]) + ')</span>';
-        }).join("");
-        resumenEl.innerHTML =
-          '<div style="display:flex; height:14px; border-radius:7px; overflow:hidden; background:var(--surface-2, #222); margin-bottom:8px;">' + barra + '</div>' +
-          '<div>' + leyenda + '</div>';
-      }
+      });
     }
+    document.querySelectorAll("[data-pp-filtro]").forEach(function(chip){
+      chip.setAttribute("aria-pressed", chip.getAttribute("data-pp-filtro") === state.pipelineFiltro ? "true" : "false");
+    });
+
+    var list = state.pipelineFiltro === "todos" ? listCompleta : listCompleta.filter(function(r){ return r.tipo === state.pipelineFiltro; });
 
     if (!list.length){
-      body.innerHTML = '<tr><td colspan="8" style="color:var(--muted); padding:18px 10px;">Todavía no hay nada en el pipeline — agrega una propuesta o un cliente.</td></tr>';
+      var msg = state.pipelineFiltro === "todos"
+        ? "Todavía no hay nada en el pipeline — agrega una propuesta o un cliente."
+        : "No hay nada en " + ETIQUETAS[state.pipelineFiltro] + " por ahora.";
+      body.innerHTML = '<tr><td colspan="8" style="color:var(--muted); padding:18px 10px;">' + msg + '</td></tr>';
       return;
     }
     var ESTADO_LABEL = { backlog: "Backlog", pipeline: "Pipeline", rechazada: "Rechazada" };
