@@ -1281,7 +1281,7 @@
       "emision": "2026-08-24",
       "vencimiento": "2026-09-22",
       "pagada": false,
-      "montoPagado": 0,
+      "montoPagado": 200000,
       "origen": "manual"
     }
   ],
