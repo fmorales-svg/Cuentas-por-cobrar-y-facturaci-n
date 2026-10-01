@@ -4597,6 +4597,32 @@
         gcal.title = "Agregar vencimiento a Google Calendar";
         tr.lastElementChild.appendChild(btn);
         tr.lastElementChild.appendChild(gcal);
+
+        // "Enviar cobranza" también desde esta pestaña: junta TODAS las
+        // facturas pendientes de este mismo cliente (no solo esta fila) en
+        // un solo correo, igual que el botón equivalente en Clientes.
+        var emailCob = getContactEmail(f.rut);
+        if (emailCob){
+          var sendBtnCob;
+          if (emailjsListo()){
+            sendBtnCob = document.createElement("button");
+            sendBtnCob.type = "button";
+            sendBtnCob.className = "send-cobranza-btn";
+            sendBtnCob.style.marginLeft = "6px";
+            sendBtnCob.textContent = "Enviar cobranza";
+            sendBtnCob.addEventListener("click", function(){
+              sendCobranzaDirecto(clienteResumenPorRut(f.rut), sendBtnCob);
+            });
+          } else {
+            sendBtnCob = document.createElement("a");
+            sendBtnCob.className = "send-cobranza-btn";
+            sendBtnCob.style.marginLeft = "6px";
+            sendBtnCob.href = buildCobranzaMailto(clienteResumenPorRut(f.rut));
+            sendBtnCob.textContent = "Enviar cobranza";
+          }
+          tr.lastElementChild.appendChild(sendBtnCob);
+        }
+
         tbody.appendChild(tr);
       });
     }
@@ -4666,6 +4692,20 @@
     var body = aplicarPlantilla(pl.cobranzaCuerpo, datos);
 
     return { subject: subject, body: body };
+  }
+
+  // Resumen de un cliente (por RUT) para poder mandar el mismo correo de
+  // cobranza agrupado desde la pestaña Cobranza, sin duplicar la lógica de
+  // agrupación que ya existe en renderClientes.
+  function clienteResumenPorRut(rut){
+    var c = { razonSocial: "", rut: rut, pendiente: 0, invoices: [] };
+    visibleInvoices().forEach(function(f){
+      if (f.rut !== rut) return;
+      if (!c.razonSocial) c.razonSocial = f.razonSocial;
+      var saldo = saldoDe(f);
+      if (saldo > 0){ c.pendiente += saldo; c.invoices.push(f); }
+    });
+    return c;
   }
 
   function buildCobranzaMailto(c){
