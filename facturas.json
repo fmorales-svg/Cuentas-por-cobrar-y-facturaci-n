@@ -3428,6 +3428,36 @@
         "manual": false,
         "generada": true,
         "folio": 100010
+      },
+      {
+        "id": "pp1-1790865092778-py1-1790374064151",
+        "clienteId": "cl1-1790374064151",
+        "proyectoId": "py1-1790374064151",
+        "razonSocial": "Foo",
+        "rut": "0",
+        "glosa": "General",
+        "anio": 2026,
+        "mes": 10,
+        "monto": 400000,
+        "moneda": "CLP",
+        "manual": false,
+        "generada": true,
+        "folio": 100016
+      },
+      {
+        "id": "pp2-1790865092779-py1-1790374064151",
+        "clienteId": "cl1-1790374064151",
+        "proyectoId": "py1-1790374064151",
+        "razonSocial": "Foo",
+        "rut": "0",
+        "glosa": "General",
+        "anio": 2026,
+        "mes": 10,
+        "monto": 200000,
+        "moneda": "CLP",
+        "manual": false,
+        "generada": true,
+        "folio": 100015
       }
     ]
   }
