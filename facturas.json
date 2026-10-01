@@ -1268,7 +1268,8 @@
       "emision": "2026-09-11",
       "vencimiento": "2026-10-11",
       "pagada": false,
-      "montoPagado": 0
+      "montoPagado": 0,
+      "concepto": "Elaboración de informe sobre derecho de llaves"
     },
     {
       "folio": 100008,
