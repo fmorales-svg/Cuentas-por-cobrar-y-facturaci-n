@@ -1357,12 +1357,19 @@
             <label for="py-termino">Término (opcional)</label>
             <input type="date" id="py-termino">
           </div>
+          <div class="field" style="flex:1; min-width:150px;">
+            <label for="py-desde">Se factura desde</label>
+            <input type="month" id="py-desde">
+          </div>
         </div>
         <p style="font-size:12px; color:var(--text-secondary); margin:0;">
           Si el proyecto se paga en cuotas cada cierto tiempo (no todos los meses), elige cada cuánto se factura acá.
           Si además tiene un número fijo de cuotas (ej. "3 cuotas de $500.000"), pon el N° de cuotas — el
           "Monto total" se calcula solo (cuotas × monto por cuota) y, apenas se facturen todas, el proyecto deja de
           generarse en meses futuros. Si no tiene fin, deja las cuotas y el monto total vacíos.
+          "Se factura desde" es clave para que el Presupuesto del año no te quede corto: si es un cliente que ya
+          venías facturando antes de cargarlo acá, pon enero (o el mes real en que partió) — si lo dejas vacío, se
+          asume que recién empieza este mes.
         </p>
         <div style="display:flex; gap:8px;">
           <button class="btn primary small" type="submit">Agregar proyecto</button>
@@ -1371,7 +1378,7 @@
       <div class="table-scroll" style="margin-top:14px;">
         <table id="table-proyectos">
           <thead>
-            <tr><th>Cliente</th><th>Glosa</th><th>Moneda</th><th class="num">Monto</th><th>Frecuencia</th><th class="num">Cuotas</th><th class="num">Monto total</th><th class="num">Saldo</th><th>Término</th><th>Activo</th><th></th></tr>
+            <tr><th>Cliente</th><th>Glosa</th><th>Moneda</th><th class="num">Monto</th><th>Frecuencia</th><th class="num">Cuotas</th><th class="num">Monto total</th><th class="num">Saldo</th><th>Desde</th><th>Término</th><th>Activo</th><th></th></tr>
           </thead>
           <tbody id="proyectos-body"></tbody>
         </table>
@@ -2619,6 +2626,8 @@
       pr.frecuenciaMeses = [1,2,3,6,12].indexOf(fm) >= 0 ? fm : 1;
     }
     if (data.fechaTermino !== undefined) pr.fechaTermino = data.fechaTermino;
+    if (data.anioInicio !== undefined && isFinite(Number(data.anioInicio))) pr.anioInicio = Number(data.anioInicio);
+    if (data.mesInicio !== undefined && isFinite(Number(data.mesInicio))) pr.mesInicio = Number(data.mesInicio);
     if (data.activo !== undefined) pr.activo = !!data.activo;
     saveProyectosStore();
     renderAll();
@@ -2792,7 +2801,7 @@
   // llenas de tu Excel. Es idempotente: se puede correr todas las veces que
   // quieras, solo toca las facturas que aún no tenían línea propia.
   function sincronizarBacklogDesdeFacturas(silencioso){
-    var clientesCreados = 0, proyectosCreados = 0, mesesVinculados = 0;
+    var clientesCreados = 0, proyectosCreados = 0, mesesVinculados = 0, iniciosAjustados = 0;
     (state.invoices || []).forEach(function(f){
       if (!f.rut || !f.emision || !f.folio) return;
       var yaVinculada = (state.presupuesto || []).some(function(l){
@@ -2826,6 +2835,17 @@
       }
       var fecha = new Date(f.emision + "T00:00:00");
       var anio = fecha.getFullYear(), mes = fecha.getMonth() + 1;
+      // Si esta factura es más antigua que el "se factura desde" que tenía el
+      // proyecto (típico en proyectos cargados a mano, que quedaban anclados
+      // al mes en que se crearon), se corrige hacia atrás — la prueba de que
+      // el cliente ya facturaba antes es la propia factura emitida.
+      var claveFactura = anio * 12 + mes;
+      var claveInicio = (Number(proyecto.anioInicio) || anio) * 12 + (Number(proyecto.mesInicio) || mes);
+      if (claveFactura < claveInicio){
+        proyecto.anioInicio = anio;
+        proyecto.mesInicio = mes;
+        iniciosAjustados++;
+      }
       var lineaPendiente = (state.presupuesto || []).find(function(l){
         return l.proyectoId === proyecto.id && l.anio === anio && l.mes === mes && !l.generada;
       });
@@ -2842,17 +2862,38 @@
       }
       mesesVinculados++;
     });
-    if (clientesCreados || proyectosCreados || mesesVinculados){
+    // Segunda pasada: proyectos que ya tenían facturas vinculadas de una
+    // sincronización anterior (antes de que esto corrigiera la fecha de
+    // inicio) también se revisan, no solo los recién vinculados arriba.
+    (state.proyectos || []).forEach(function(pr){
+      var minClave = null, minAnio = null, minMes = null;
+      (state.presupuesto || []).filter(function(l){ return l.proyectoId === pr.id && l.generada; }).forEach(function(l){
+        var clave = l.anio * 12 + l.mes;
+        if (minClave === null || clave < minClave){ minClave = clave; minAnio = l.anio; minMes = l.mes; }
+      });
+      if (minClave === null) return;
+      var claveActual = (Number(pr.anioInicio) || minAnio) * 12 + (Number(pr.mesInicio) || minMes);
+      if (minClave < claveActual){
+        pr.anioInicio = minAnio;
+        pr.mesInicio = minMes;
+        iniciosAjustados++;
+      }
+    });
+    if (clientesCreados || proyectosCreados || mesesVinculados || iniciosAjustados){
       saveClientesMaestroStore(); saveProyectosStore(); savePresupuestoStore();
       renderAll();
       autoPublicarCambioCompartido();
     }
     if (!silencioso){
-      showToast(mesesVinculados
-        ? ("Backlog sincronizado: " + proyectosCreados + " proyecto(s) y " + clientesCreados + " cliente(s) nuevos, " + mesesVinculados + " mes(es) vinculados a facturas reales.")
-        : "El Backlog ya está al día con las facturas emitidas — nada nuevo que vincular.");
+      if (mesesVinculados || iniciosAjustados){
+        showToast("Backlog sincronizado: " + proyectosCreados + " proyecto(s) y " + clientesCreados + " cliente(s) nuevos, " +
+           mesesVinculados + " mes(es) vinculados a facturas reales" +
+           (iniciosAjustados ? ", " + iniciosAjustados + " fecha(s) de inicio corregidas hacia atrás según tu factura más antigua" : "") + ".");
+      } else {
+        showToast("El Backlog ya está al día con las facturas emitidas — nada nuevo que vincular.");
+      }
     }
-    return { clientesCreados: clientesCreados, proyectosCreados: proyectosCreados, mesesVinculados: mesesVinculados };
+    return { clientesCreados: clientesCreados, proyectosCreados: proyectosCreados, mesesVinculados: mesesVinculados, iniciosAjustados: iniciosAjustados };
   }
   function addLineaPresupuestoManual(data){
     var razon = (data.razonSocial || "").trim();
@@ -3875,6 +3916,16 @@
     showToast("Factura folio " + f.folio + " marcada como pagada.");
   }
 
+  function unmarkPaid(f){
+    pushUndo();
+    f.pagada = false;
+    f.montoPagado = 0;
+    saveData();
+    renderAll();
+    autoPublicarCambioCompartido();
+    showToast("Factura folio " + f.folio + " marcada como no pagada.");
+  }
+
   function registrarPago(f, monto){
     monto = Number(monto);
     if (!isFinite(monto) || monto < 0){
@@ -4337,6 +4388,19 @@
         wrap.appendChild(btn);
         wrap.appendChild(gcal);
         actionTd.appendChild(wrap);
+      } else {
+        var wrapPagada = document.createElement("div");
+        wrapPagada.className = "pago-cell";
+
+        var unpayBtn = document.createElement("button");
+        unpayBtn.className = "pago-save-btn";
+        unpayBtn.type = "button";
+        unpayBtn.textContent = "Marcar como no pagada";
+        unpayBtn.title = "Deshacer el pago: la factura vuelve a quedar pendiente";
+        unpayBtn.addEventListener("click", function(){ unmarkPaid(f); });
+
+        wrapPagada.appendChild(unpayBtn);
+        actionTd.appendChild(wrapPagada);
       }
 
       var editBtn = document.createElement("button");
@@ -5306,7 +5370,13 @@
     try {
       for (var intento = 1; intento <= MAX_INTENTOS; intento++){
         var sha = null;
+        // cache: "no-store" es clave acá — sin esto, el navegador puede
+        // devolver una respuesta de API vieja (con un "sha" que ya no es el
+        // actual), y entonces el PUT de abajo siempre choca con 409 aunque
+        // reintentemos, porque cada reintento vuelve a leer el mismo sha
+        // obsoleto desde el caché en vez de ir a buscar el real a GitHub.
         var getResp = await fetch(apiUrl + "?ref=" + encodeURIComponent(branch), {
+          cache: "no-store",
           headers: { "Authorization": "token " + cfg.token, "Accept": "application/vnd.github+json" }
         });
         if (getResp.status === 200){
@@ -6176,7 +6246,7 @@
       .sort(function(a,b){ return a.cliente.razonSocial.localeCompare(b.cliente.razonSocial) || a.proyecto.glosa.localeCompare(b.proyecto.glosa); });
     countEl.textContent = list.length + (list.length === 1 ? " proyecto" : " proyectos");
     if (!list.length){
-      body.innerHTML = '<tr><td colspan="11" style="color:var(--muted); padding:18px 10px;">Todavía no hay proyectos — agrega uno arriba para que el cliente entre al presupuesto mensual.</td></tr>';
+      body.innerHTML = '<tr><td colspan="12" style="color:var(--muted); padding:18px 10px;">Todavía no hay proyectos — agrega uno arriba para que el cliente entre al presupuesto mensual.</td></tr>';
       return;
     }
     var FRECUENCIAS = [[1,"Mensual"],[2,"Bimestral"],[3,"Trimestral"],[6,"Semestral"],[12,"Anual"]];
@@ -6201,6 +6271,7 @@
         '<td class="num tabular"><input type="number" class="py-cuotas-input" data-id="' + pr.id + '" value="' + (pr.cuotas || "") + '" min="0" step="1" placeholder="—" style="width:60px; text-align:right;"></td>' +
         '<td class="num tabular"><input type="number" class="py-montototal-input" data-id="' + pr.id + '" value="' + (pr.montoTotal || "") + '" min="0" step="1" placeholder="Recurrente" style="width:100px; text-align:right;" ' + (pr.cuotas > 0 ? 'disabled title="Se calcula solo desde N° de cuotas"' : '') + '></td>' +
         '<td class="num tabular">' + saldoHtml + '</td>' +
+        '<td><input type="month" class="py-desde-input" data-id="' + pr.id + '" value="' + (pr.anioInicio ? (pr.anioInicio + "-" + String(pr.mesInicio).padStart(2,"0")) : "") + '" style="width:120px;" title="Desde cuándo se factura — ponlo en enero si el cliente ya venía de antes, para que el Presupuesto del año no quede corto"></td>' +
         '<td><input type="date" class="py-termino-input" data-id="' + pr.id + '" value="' + (pr.fechaTermino || "") + '" style="width:135px;"></td>' +
         '<td><input type="checkbox" class="py-activo-chk" data-id="' + pr.id + '" ' + (pr.activo ? "checked" : "") + '></td>' +
         '<td><button class="btn ghost small py-del-btn" data-id="' + pr.id + '" type="button" title="Eliminar">✕</button></td>' +
@@ -6220,6 +6291,14 @@
     });
     body.querySelectorAll(".py-cuotas-input").forEach(function(inp){
       inp.addEventListener("change", function(){ updateProyecto(inp.getAttribute("data-id"), { cuotas: inp.value }); });
+    });
+    body.querySelectorAll(".py-desde-input").forEach(function(inp){
+      inp.addEventListener("change", function(){
+        var v = inp.value; // "YYYY-MM" o vacío
+        if (!v) return;
+        var partes = v.split("-");
+        updateProyecto(inp.getAttribute("data-id"), { anioInicio: Number(partes[0]), mesInicio: Number(partes[1]) });
+      });
     });
     body.querySelectorAll(".py-montototal-input").forEach(function(inp){
       inp.addEventListener("change", function(){ updateProyecto(inp.getAttribute("data-id"), { montoTotal: inp.value }); });
@@ -6336,15 +6415,51 @@
   }
 
   // ---------- Presupuestado vs. facturado real, y proyección anual ----------
+  // El "presupuestado" del año no puede depender de que hayas hecho clic en
+  // "+ Agregar proyectos vigentes de este mes" mes por mes — eso solo llena
+  // state.presupuesto de a poco, y si te falta materializar algún mes pasado
+  // el total queda por debajo de lo que tu Backlog realmente vale. Esto
+  // proyecta, para cada proyecto vigente, TODOS los meses del año en que le
+  // toca facturar (según su frecuencia): usa la línea real si ya existe (y
+  // por lo tanto respeta un monto ya facturado/congelado vía
+  // montoPresupuestadoDe), y si no existe todavía, proyecta con el monto
+  // mensual del proyecto — así el total sí coincide con "Backlog completo".
+  function presupuestadoAnualDe(anio){
+    var porCliente = {};
+    var porMes = new Array(12).fill(0);
+    var total = 0;
+    function sumar(clienteKey, mes, monto){
+      porCliente[clienteKey] = (porCliente[clienteKey] || 0) + monto;
+      if (mes >= 1 && mes <= 12) porMes[mes - 1] += monto;
+      total += monto;
+    }
+    (state.proyectos || []).filter(proyectoVigente).forEach(function(pr){
+      var cliente = (state.clientesMaestro || []).find(function(c){ return c.id === pr.clienteId; });
+      if (!cliente || !cliente.activo) return;
+      for (var mes = 1; mes <= 12; mes++){
+        if (anio < pr.anioInicio || (anio === pr.anioInicio && mes < pr.mesInicio)) continue;
+        if (!proyectoFacturableEnMes(pr, anio, mes)) continue;
+        var linea = (state.presupuesto || []).find(function(l){
+          return l.proyectoId === pr.id && l.anio === anio && l.mes === mes;
+        });
+        var monto = linea ? montoPresupuestadoDe(linea) : montoCLP(pr.montoMensual, pr.moneda);
+        sumar(cliente.razonSocial, mes, monto);
+      }
+    });
+    (state.presupuesto || []).filter(function(l){ return l.anio === anio && !l.proyectoId; }).forEach(function(l){
+      sumar(l.razonSocial, l.mes, montoPresupuestadoDe(l));
+    });
+    return { porCliente: porCliente, porMes: porMes, total: total };
+  }
+
   function renderPresupuestoVsReal(){
     var body = document.getElementById("presupuesto-vs-real-body");
     if (!body) return;
     var anio = Number(state.presupuestoAnio);
+    var proyeccion = presupuestadoAnualDe(anio);
     var porCliente = {};
-    (state.presupuesto || []).filter(function(l){ return l.anio === anio; }).forEach(function(l){
-      var key = l.razonSocial;
-      if (!porCliente[key]) porCliente[key] = { presupuestado: 0, real: 0 };
-      porCliente[key].presupuestado += montoPresupuestadoDe(l);
+    Object.keys(proyeccion.porCliente).forEach(function(key){
+      porCliente[key] = { presupuestado: proyeccion.porCliente[key], real: 0 };
     });
     (state.invoices || []).filter(function(f){ return f.emision && new Date(f.emision).getFullYear() === anio; }).forEach(function(f){
       var key = f.razonSocial;
@@ -6388,11 +6503,8 @@
   function renderChartPresupuestoMensual(anio){
     var svg = document.getElementById("chart-presupuesto-mensual");
     if (!svg) return;
-    var presupPorMes = new Array(12).fill(0);
+    var presupPorMes = presupuestadoAnualDe(anio).porMes.slice();
     var realPorMes = new Array(12).fill(0);
-    (state.presupuesto || []).filter(function(l){ return l.anio === anio; }).forEach(function(l){
-      presupPorMes[l.mes - 1] += montoPresupuestadoDe(l);
-    });
     (state.invoices || []).filter(function(f){ return f.emision && new Date(f.emision).getFullYear() === anio; }).forEach(function(f){
       var mIdx = new Date(f.emision).getMonth();
       realPorMes[mIdx] += facturadoDe(f);
@@ -7405,6 +7517,7 @@
 
   document.getElementById("new-proyecto-form").addEventListener("submit", function(e){
     e.preventDefault();
+    var desde = document.getElementById("py-desde").value; // "YYYY-MM" o vacío
     var ok = addProyecto({
       clienteId: document.getElementById("py-cliente").value,
       glosa: document.getElementById("py-glosa").value,
@@ -7414,6 +7527,8 @@
       cuotas: document.getElementById("py-cuotas").value,
       montoTotal: document.getElementById("py-montototal").value,
       fechaTermino: document.getElementById("py-termino").value,
+      anioInicio: desde ? Number(desde.split("-")[0]) : undefined,
+      mesInicio: desde ? Number(desde.split("-")[1]) : undefined,
       activo: true
     });
     if (ok) e.target.reset();
