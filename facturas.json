@@ -1244,7 +1244,8 @@
       "emision": "2026-09-07",
       "vencimiento": "2026-10-07",
       "pagada": false,
-      "montoPagado": 0
+      "montoPagado": 0,
+      "responsable": ""
     },
     {
       "folio": 211,
@@ -1268,8 +1269,7 @@
       "emision": "2026-09-11",
       "vencimiento": "2026-10-11",
       "pagada": false,
-      "montoPagado": 0,
-      "concepto": "Elaboración de informe sobre derecho de llaves"
+      "montoPagado": 0
     },
     {
       "folio": 100008,
