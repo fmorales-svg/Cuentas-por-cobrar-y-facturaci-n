@@ -4075,14 +4075,13 @@
   function renderTable(){
     var tbody = document.getElementById("invoice-body");
     tbody.innerHTML = "";
-    // Mientras se está buscando texto, el buscador manda: se ven TODAS las
-    // facturas que calcen con lo escrito, sin importar el chip de estado que
-    // haya quedado activo (Vencidas, Pagadas, etc.) — así "chinos" muestra
-    // todas las facturas de ese cliente, no solo las del estado seleccionado.
+    // El buscador de texto y el chip de estado (Vencidas, Pagadas, etc.) se
+    // aplican juntos: si hay un chip de estado activo, solo se ven las
+    // facturas de ese estado que además calcen con lo escrito en el buscador.
     var rows = visibleInvoices()
       .filter(function(f){
         if (!matchesQuery(f)) return false;
-        return state.query ? true : matchesFilter(f);
+        return matchesFilter(f);
       })
       .sort(function(a,b){ return new Date(b.emision) - new Date(a.emision); });
     rows = applySort(rows, state.sort.facturas, FACTURAS_SORT_ACCESSORS);
