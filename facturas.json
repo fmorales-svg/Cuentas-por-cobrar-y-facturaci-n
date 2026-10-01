@@ -833,8 +833,8 @@
       "total": 1200000,
       "emision": "2026-06-30",
       "vencimiento": "2026-07-30",
-      "pagada": false,
-      "montoPagado": 0
+      "pagada": true,
+      "montoPagado": 1200000
     },
     {
       "folio": 173,
@@ -1085,8 +1085,8 @@
       "total": 450000,
       "emision": "2026-08-28",
       "vencimiento": "2026-09-27",
-      "pagada": false,
-      "montoPagado": 250000
+      "pagada": true,
+      "montoPagado": 450000
     },
     {
       "folio": 199,
@@ -1109,8 +1109,8 @@
       "total": 1200000,
       "emision": "2026-08-30",
       "vencimiento": "2026-09-29",
-      "pagada": false,
-      "montoPagado": 0
+      "pagada": true,
+      "montoPagado": 1200000
     },
     {
       "folio": 201,
@@ -1280,8 +1280,8 @@
       "total": 400000,
       "emision": "2026-08-24",
       "vencimiento": "2026-09-22",
-      "pagada": false,
-      "montoPagado": 200000,
+      "pagada": true,
+      "montoPagado": 400000,
       "origen": "manual"
     }
   ],
