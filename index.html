@@ -3344,6 +3344,11 @@
         out.pagada = local.pagada;
       }
       if (local.rechazada && !rd.rechazada) out.rechazada = true;
+      // Mismo criterio para Responsable y Concepto/Glosa: si acá tenemos algo
+      // escrito y lo que llega de GitHub todavía no lo tiene (porque la
+      // publicación no alcanzó a llegar), no lo borramos.
+      if (local.responsable && !rd.responsable) out.responsable = local.responsable;
+      if (local.concepto && !rd.concepto) out.concepto = local.concepto;
       return out;
     });
     // Documentos que solo existen en este navegador todavía (agregados o
@@ -3390,6 +3395,12 @@
       if (state.dataSource !== "facturas.json") return;
       // No pisar mientras hay un formulario de edición abierto.
       if (state.editingFolio || !document.getElementById("new-invoice-form").hidden) return;
+      // Tampoco pisar si hiciste un cambio hace muy poco (campo "Responsable",
+      // "Concepto/Glosa", correo de contacto, ajustes, etc.): le damos tiempo a
+      // que la publicación a GitHub termine antes de volver a leer facturas.json.
+      // Sin esto, el sondeo podía llegar con la versión vieja del archivo y
+      // pisar justo lo que acababas de guardar.
+      if (dentroDeProteccion()) return;
       try {
         var res = await fetch("facturas.json", { cache: "no-store" });
         if (!res.ok) return;
