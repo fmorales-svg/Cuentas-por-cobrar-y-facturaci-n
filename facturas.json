@@ -1160,7 +1160,9 @@
       "emision": "2026-09-01",
       "vencimiento": "2026-10-01",
       "pagada": false,
-      "montoPagado": 0
+      "montoPagado": 0,
+      "concepto": "Informe Impuesto Adicional",
+      "responsable": "Freddy Morales"
     },
     {
       "folio": 204,
