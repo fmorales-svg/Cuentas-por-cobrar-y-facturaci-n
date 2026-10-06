@@ -35,13 +35,11 @@ def clean_env(name, default=None):
     value = re.sub(r"[\x00-\x1f\x7f ​‌‍﻿]", "", value)
     return value.strip()
 
-
 SMTP_HOST = clean_env("SMTP_HOST", "smtp.gmail.com")
 SMTP_PORT = int(clean_env("SMTP_PORT", "587"))
 SMTP_USER = clean_env("SMTP_USER")
 SMTP_PASS = clean_env("SMTP_PASS")
 EMAIL_TO = clean_env("EMAIL_TO", SMTP_USER)
-
 
 def parse_date(value):
     # Acepta "YYYY-MM-DD", ISO con hora, o "DD-MM-YYYY".
@@ -52,7 +50,6 @@ def parse_date(value):
         except ValueError:
             continue
     raise ValueError("Formato de fecha no reconocido: %r" % value)
-
 
 def fmt_clp(n):
     return "$" + format(round(n), ",").replace(",", ".")
@@ -70,7 +67,6 @@ def saldo_de(f):
         pagado = total
     return max(0, total - pagado)
 
-
 def main():
     if not SMTP_USER or not SMTP_PASS:
         print("Faltan SMTP_USER / SMTP_PASS (configura los secrets del repo).", file=sys.stderr)
@@ -80,11 +76,27 @@ def main():
           "SMTP_USER largo=%d, EMAIL_TO largo=%d" % (len(SMTP_USER), len(EMAIL_TO)))
 
     with open(FACTURAS_PATH, "r", encoding="utf-8") as fh:
-        facturas = json.load(fh)
+        data = json.load(fh)
+
+    # El dashboard publica facturas.json en uno de dos formatos:
+    # - v1 (viejo): una lista plana de facturas.
+    # - v2 (actual, desde que se agregó la config compartida — clientes,
+    #   plantillas de correo, metas, etc.): un objeto
+    #   {"documentos": [...], "config": {...}}.
+    # Sin este chequeo, con el formato v2 el script terminaba iterando
+    # sobre las LLAVES del objeto ("documentos", "config", strings) en vez
+    # de sobre las facturas, y reventaba con
+    # "AttributeError: 'str' object has no attribute 'get'".
+    if isinstance(data, list):
+        facturas = data
+    else:
+        facturas = data.get("documentos", [])
 
     hoy = date.today()
     vencidas = []
     for f in facturas:
+        if not isinstance(f, dict):
+            continue
         saldo = saldo_de(f)
         if saldo <= 0:
             continue
@@ -107,7 +119,7 @@ def main():
     total_vencido = sum(f["saldo"] for f in vencidas)
 
     filas = "\n".join(
-        "  - Folio {folio} · {razon} · {rut} · saldo {saldo}{parcial} · vencida hace {dias} dia(s)".format(
+        " - Folio {folio} · {razon} · {rut} · saldo {saldo}{parcial} · vencida hace {dias} dia(s)".format(
             folio=f.get("folio"),
             razon=f.get("razonSocial", ""),
             rut=f.get("rut", ""),
@@ -155,7 +167,6 @@ def main():
         server.sendmail(SMTP_USER, destinatarios, msg.as_string())
 
     print("Correo enviado a %d destinatario(s) con %d factura(s) vencida(s)." % (len(destinatarios), len(vencidas)))
-
 
 if __name__ == "__main__":
     main()
