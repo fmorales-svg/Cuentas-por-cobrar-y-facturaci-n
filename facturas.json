@@ -1003,8 +1003,8 @@
       "total": 171559,
       "emision": "2026-08-11",
       "vencimiento": "2026-09-10",
-      "pagada": false,
-      "montoPagado": 0
+      "pagada": true,
+      "montoPagado": 171559
     },
     {
       "folio": 189,
@@ -1160,9 +1160,7 @@
       "emision": "2026-09-01",
       "vencimiento": "2026-10-01",
       "pagada": false,
-      "montoPagado": 0,
-      "concepto": "Informe de Impuesto adicional",
-      "responsable": "Freddy Morales"
+      "montoPagado": 0
     },
     {
       "folio": 204,
