@@ -7266,11 +7266,9 @@
   globalSearchInput.addEventListener("input", function(){
     var q = globalSearchInput.value.trim().toLowerCase();
     if (!q){ globalSearchResults.hidden = true; return; }
-    var facturaMatches = state.invoices.filter(function(f){
-      return String(f.folio).indexOf(q) >= 0 ||
-        (f.razonSocial || "").toLowerCase().indexOf(q) >= 0 ||
-        (f.rut || "").toLowerCase().indexOf(q) >= 0;
-    }).slice(0, 8);
+    // El buscador de la barra superior solo busca por cliente (razón social
+    // o RUT) — ya no muestra facturas individuales, para que no se confunda
+    // ni se haga clic sin querer en un folio en vez del cliente.
     var clientesVistos = {};
     var clienteMatches = [];
     state.invoices.forEach(function(f){
@@ -7281,37 +7279,19 @@
         clienteMatches.push(f);
       }
     });
-    clienteMatches = clienteMatches.slice(0, 5);
+    clienteMatches = clienteMatches.slice(0, 8);
 
-    if (!facturaMatches.length && !clienteMatches.length){
+    if (!clienteMatches.length){
       globalSearchResults.innerHTML = '<div class="gsr-empty">Sin resultados para "' + globalSearchInput.value + '".</div>';
       globalSearchResults.hidden = false;
       return;
     }
-    var html = "";
-    if (clienteMatches.length){
-      html += clienteMatches.map(function(f){
-        return '<button type="button" class="gsr-item" data-jump-cliente="' + f.rut + '">' +
-          '<div class="t1">👤 ' + f.razonSocial + '</div><div class="t2">' + f.rut + '</div></button>';
-      }).join("");
-    }
-    if (facturaMatches.length){
-      html += facturaMatches.map(function(f){
-        return '<button type="button" class="gsr-item" data-jump-folio="' + f.folio + '">' +
-          '<div class="t1">📄 Folio ' + f.folio + ' — ' + f.razonSocial + '</div>' +
-          '<div class="t2">' + fmtCLP(f.total) + ' · vence ' + fmtDate(new Date(f.vencimiento)) + '</div></button>';
-      }).join("");
-    }
+    var html = clienteMatches.map(function(f){
+      return '<button type="button" class="gsr-item" data-jump-cliente="' + f.rut + '">' +
+        '<div class="t1">👤 ' + f.razonSocial + '</div><div class="t2">' + f.rut + '</div></button>';
+    }).join("");
     globalSearchResults.innerHTML = html;
     globalSearchResults.hidden = false;
-    globalSearchResults.querySelectorAll("[data-jump-folio]").forEach(function(btn){
-      btn.addEventListener("click", function(){
-        var f = state.invoices.filter(function(x){ return String(x.folio) === btn.getAttribute("data-jump-folio"); })[0];
-        if (f) jumpToInvoice(f);
-        globalSearchResults.hidden = true;
-        globalSearchInput.value = "";
-      });
-    });
     globalSearchResults.querySelectorAll("[data-jump-cliente]").forEach(function(btn){
       btn.addEventListener("click", function(){
         jumpToCliente(btn.getAttribute("data-jump-cliente"));
