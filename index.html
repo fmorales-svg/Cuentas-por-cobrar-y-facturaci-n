@@ -4902,30 +4902,10 @@
       wrap.appendChild(saveBtn);
       emailTd.appendChild(wrap);
 
-      var email = getContactEmail(c.rut);
-      var sendBtn;
-      if (c.pendiente > 0 && email && emailjsListo()){
-        sendBtn = document.createElement("button");
-        sendBtn.type = "button";
-        sendBtn.className = "send-cobranza-btn";
-        sendBtn.textContent = "Enviar cobranza";
-        sendBtn.addEventListener("click", function(){ sendCobranzaDirecto(c, sendBtn); });
-      } else {
-        sendBtn = document.createElement("a");
-        sendBtn.className = "send-cobranza-btn";
-        if (c.pendiente > 0 && email){
-          sendBtn.href = buildCobranzaMailto(c);
-          sendBtn.textContent = "Enviar cobranza";
-        } else {
-          sendBtn.href = "javascript:void(0)";
-          sendBtn.setAttribute("aria-disabled", "true");
-          sendBtn.style.opacity = ".4";
-          sendBtn.style.pointerEvents = "none";
-          sendBtn.textContent = c.pendiente > 0 ? "Falta email" : "Sin saldo";
-        }
-      }
-      actionTd.appendChild(sendBtn);
-
+      // El botón "Enviar cobranza" vive solo en la pestaña Cobranza (a
+      // propósito, para no duplicar el envío desde dos lugares distintos) —
+      // acá en Clientes solo se guarda el correo de contacto y se ve el
+      // historial de envíos.
       var histCount = emailHistoryDe(c.rut).length;
       if (histCount){
         var histSpan = document.createElement("span");
