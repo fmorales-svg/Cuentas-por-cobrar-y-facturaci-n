@@ -677,6 +677,11 @@
   .pago-save-btn:hover{ background: var(--accent-soft); }
   .saldo-txt{ font-size: 11px; color: var(--muted); }
   .contact-cell{ display:flex; align-items:center; gap:6px; flex-wrap: wrap; }
+  .row-highlight{ animation: rowHighlightFade 2s ease-out; }
+  @keyframes rowHighlightFade{
+    0%{ background: var(--accent-soft); }
+    100%{ background: transparent; }
+  }
   .contact-input{
     width: 168px; padding: 5px 7px; font-size: 12px; border-radius: 7px;
     border: 1px solid var(--border); background: var(--surface); color: var(--text);
@@ -4860,6 +4865,7 @@
     }
     list.forEach(function(c){
       var tr = document.createElement("tr");
+      tr.setAttribute("data-cliente-rut", c.rut);
       tr.innerHTML =
         '<td><div class="client-name">' + c.razonSocial + '</div><div class="client-sub tabular">' + c.rut + '</div></td>' +
         '<td class="num tabular">' + c.n + '</td>' +
@@ -7232,6 +7238,21 @@
       state.queryCobranza = rut;
       document.getElementById("search-cobranza").value = rut;
       renderCobranza();
+      return;
+    }
+    // Si ya estás en la pestaña Clientes, el buscador te deja ahí mismo
+    // (antes siempre saltaba a Facturas, aunque estuvieras buscando un
+    // cliente estando parado en Clientes) y resalta/enfoca su fila.
+    if (state.view === "clientes"){
+      renderClientes();
+      var row = document.querySelector('#clientes-body tr[data-cliente-rut="' + rut.replace(/"/g, '\\"') + '"]');
+      if (row){
+        row.scrollIntoView({ behavior: "smooth", block: "center" });
+        row.classList.add("row-highlight");
+        setTimeout(function(){ row.classList.remove("row-highlight"); }, 2000);
+        var emailInput = row.querySelector(".contact-input");
+        if (emailInput) emailInput.focus();
+      }
       return;
     }
     state.query = rut;
