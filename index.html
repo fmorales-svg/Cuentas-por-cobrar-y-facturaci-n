@@ -676,6 +676,14 @@
   }
   .pago-save-btn:hover{ background: var(--accent-soft); }
   .saldo-txt{ font-size: 11px; color: var(--muted); }
+  .sb-modal-bg{ position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:60; display:flex; align-items:center; justify-content:center; padding:16px; }
+  .sb-modal{ background:var(--surface); color:var(--text-primary); border:1px solid var(--border); border-radius:16px; box-shadow:var(--shadow); padding:22px 22px 18px; width:min(380px,100%); }
+  .sb-modal h3{ font-size:16px; font-weight:800; margin-bottom:6px; }
+  .sb-modal p{ font-size:12.5px; color:var(--text-secondary); line-height:1.5; margin:0 0 12px; }
+  .sb-modal .field{ margin-bottom:10px; }
+  .sb-modal .sb-row{ display:flex; gap:8px; flex-wrap:wrap; margin-top:6px; }
+  .sb-msg{ font-size:12.5px; margin-top:10px; min-height:16px; }
+  .sb-msg.error{ color:var(--critical); }
   .contact-cell{ display:flex; align-items:center; gap:6px; flex-wrap: wrap; }
   .row-highlight{ animation: rowHighlightFade 2s ease-out; }
   @keyframes rowHighlightFade{
@@ -1054,6 +1062,7 @@
         <div id="global-search-results" class="global-search-results" hidden></div>
       </div>
       <button class="btn ghost small" id="undo-btn" type="button" title="Deshacer el último cambio (marcar pagada, eliminar, editar, etc.)" disabled>↩ Deshacer</button>
+      <button class="btn ghost small" id="sb-login-btn" type="button" title="Iniciar sesión para guardar y ver los datos compartidos del equipo">🔐 Iniciar sesión</button>
       <button class="btn ghost small" id="theme-btn" type="button" title="Cambiar fondo: automático (según el dispositivo), oscuro o claro">🌗 Auto</button>
       <button class="btn ghost small" id="density-btn" type="button" title="Alternar entre vista normal y compacta de las tablas">↕ Compacto</button>
       <button class="btn ghost small" id="print-pdf-btn" type="button" title="Exportar todo el dashboard a PDF (usa Imprimir → Guardar como PDF)">🖨 Exportar PDF</button>
@@ -2044,6 +2053,21 @@
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+<div class="sb-modal-bg" id="sb-modal" hidden>
+  <form class="sb-modal" id="sb-form" autocomplete="on">
+    <h3>Iniciar sesión</h3>
+    <p>Entra con tu correo de DMZ para ver y guardar los datos compartidos del equipo. No necesitas ningún token de GitHub.</p>
+    <div class="field"><label for="sb-email">Correo</label><input type="email" id="sb-email" autocomplete="username" required placeholder="nombre@dmzconsultores.com"></div>
+    <div class="field"><label for="sb-pass">Contraseña</label><input type="password" id="sb-pass" autocomplete="current-password" required minlength="8" placeholder="Mínimo 8 caracteres"></div>
+    <div class="sb-row">
+      <button class="btn primary small" type="submit" id="sb-ingresar">Ingresar</button>
+      <button class="btn ghost small" type="button" id="sb-registrar" title="Primera vez: crea tu contraseña y confirma tu correo">Crear cuenta</button>
+      <button class="btn ghost small" type="button" id="sb-olvide" title="Te enviamos un correo para cambiar la contraseña">Olvidé mi contraseña</button>
+      <button class="btn ghost small" type="button" id="sb-cancelar">Cancelar</button>
+    </div>
+    <div class="sb-msg" id="sb-msg" role="status"></div>
+  </form>
+</div>
 <script>
 (function(){
   "use strict";
@@ -3364,7 +3388,213 @@
     return merged;
   }
 
+
+  // ===================== Datos compartidos en Supabase ======================
+  // Cada persona entra con SU correo y contraseña (sin tokens de GitHub). La
+  // base solo deja leer/escribir a los correos autorizados y confirmados
+  // (ver política en la base). La llave de abajo es pública por diseño: lo que
+  // protege los datos es la sesión + las reglas de la base, no esta llave.
+  var SB_URL = "https://ohzojknxbwjfyadiejfd.supabase.co";
+  var SB_KEY = "sb_publishable_KWf7Bz8JLp_wEJQR1iITMA_sYYOTJLx";
+  var SB_SESSION_KEY = "dmz-sb-session";
+  var sbSession = null;
+  var sbSubirAlIniciar = false;
+  try { var _s = JSON.parse(localStorage.getItem(SB_SESSION_KEY)); if (_s && _s.access_token && _s.refresh_token) sbSession = _s; } catch(e){}
+  function sbActivo(){ return !!sbSession; }
+  function sbGuardarSesion(sesion){
+    sbSession = sesion;
+    try { if (sesion) localStorage.setItem(SB_SESSION_KEY, JSON.stringify(sesion)); else localStorage.removeItem(SB_SESSION_KEY); } catch(e){}
+    pintarBotonSesion();
+  }
+  function sbSesionDesdeRespuesta(d, emailPrevio){
+    return {
+      access_token: d.access_token,
+      refresh_token: d.refresh_token,
+      expires_at: Date.now() + ((d.expires_in || 3600) * 1000) - 60000,
+      email: (d.user && d.user.email) || emailPrevio || ""
+    };
+  }
+  async function sbAuth(path, body){
+    return fetch(SB_URL + "/auth/v1/" + path, {
+      method: "POST",
+      headers: { "apikey": SB_KEY, "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+  }
+  async function sbSesionVigente(){
+    if (!sbSession) return false;
+    if (Date.now() < sbSession.expires_at) return true;
+    try {
+      var r = await sbAuth("token?grant_type=refresh_token", { refresh_token: sbSession.refresh_token });
+      if (!r.ok){ sbGuardarSesion(null); return false; }
+      sbGuardarSesion(sbSesionDesdeRespuesta(await r.json(), sbSession.email));
+      return true;
+    } catch(e){ return true; /* sin red: se reintenta después */ }
+  }
+  async function sbRest(method, pathQuery, body, prefer){
+    if (!(await sbSesionVigente())) throw new Error("Sesión vencida: vuelve a iniciar sesión.");
+    var headers = { "apikey": SB_KEY, "Authorization": "Bearer " + sbSession.access_token, "Content-Type": "application/json" };
+    if (prefer) headers["Prefer"] = prefer;
+    return fetch(SB_URL + "/rest/v1/" + pathQuery, { method: method, headers: headers, body: body ? JSON.stringify(body) : undefined, cache: "no-store" });
+  }
+  async function sbEsAutorizado(){
+    var r = await sbRest("POST", "rpc/dmz_cobranza_autorizado", {});
+    if (!r.ok) return false;
+    return (await r.json()) === true;
+  }
+  async function sbCargarDatos(){
+    var r = await sbRest("GET", "dmz_cobranza_datos?id=eq.main&select=data");
+    if (!r.ok) throw new Error("No se pudo leer la base (" + r.status + ").");
+    var rows = await r.json();
+    return rows.length ? rows[0].data : null;
+  }
+  var _sbPublishChain = Promise.resolve();
+  function sbPublicar(){
+    _sbPublishChain = _sbPublishChain.then(_sbPublicarUna, _sbPublicarUna);
+    return _sbPublishChain;
+  }
+  async function _sbPublicarUna(){
+    try {
+      var data = JSON.parse(buildFacturasJSON());
+      var r = await sbRest("POST", "dmz_cobranza_datos?on_conflict=id",
+        [{ id: "main", data: data, updated_at: new Date().toISOString(), updated_by: sbSession ? sbSession.email : null }],
+        "resolution=merge-duplicates,return=minimal");
+      if (!r.ok){
+        var t = await r.text();
+        throw new Error("código " + r.status + " " + t.slice(0, 140));
+      }
+      showToast("Guardado y compartido con el equipo.");
+      return true;
+    } catch(e){
+      showToast("No se pudo guardar en la base compartida: " + (e.message || e), { error: true, duration: 5000 });
+      return false;
+    }
+  }
+  var _sbTimer = null;
+  function sbPublicarDebounce(){
+    if (_sbTimer) clearTimeout(_sbTimer);
+    _sbTimer = setTimeout(function(){ _sbTimer = null; sbPublicar(); }, 800);
+  }
+  async function traerDatosRemotos(){
+    if (state.dataSource === "supabase"){
+      if (!(await sbSesionVigente())) return null;
+      return await sbCargarDatos();
+    }
+    var res = await fetch("facturas.json", { cache: "no-store" });
+    if (!res.ok) return null;
+    return await res.json();
+  }
+
+  // ---- Pantalla de inicio de sesión ----
+  function pintarBotonSesion(){
+    var b = document.getElementById("sb-login-btn");
+    if (!b) return;
+    if (sbSession){
+      b.textContent = "👤 " + (sbSession.email || "Sesión") + " · Salir";
+      b.title = "Cerrar sesión";
+    } else {
+      b.textContent = "🔐 Iniciar sesión";
+      b.title = "Iniciar sesión para guardar y ver los datos compartidos del equipo";
+    }
+  }
+  function sbMsg(texto, esError){
+    var m = document.getElementById("sb-msg");
+    m.textContent = texto || "";
+    m.classList.toggle("error", !!esError);
+  }
+  function sbAbrirModal(){
+    sbMsg("");
+    document.getElementById("sb-modal").hidden = false;
+    document.getElementById("sb-email").focus();
+  }
+  function sbCerrarModal(){ document.getElementById("sb-modal").hidden = true; }
+  function sbTraducirError(d){
+    var m = String((d && (d.msg || d.error_description || d.message)) || "").toLowerCase();
+    if (m.indexOf("invalid login") >= 0) return "Correo o contraseña incorrectos.";
+    if (m.indexOf("not confirmed") >= 0) return "Falta confirmar tu correo: revisa tu bandeja (y spam) y abre el link que te enviamos.";
+    if (m.indexOf("already") >= 0) return "Ese correo ya tiene cuenta: usa \"Ingresar\" (o \"Olvidé mi contraseña\").";
+    if (m.indexOf("password") >= 0 && m.indexOf("characters") >= 0) return "La contraseña debe tener al menos 8 caracteres.";
+    if (m.indexOf("rate") >= 0) return "Demasiados intentos: espera un minuto y vuelve a probar.";
+    return (d && (d.msg || d.error_description || d.message)) || "No se pudo completar. Intenta de nuevo.";
+  }
+  async function sbIngresar(){
+    var email = document.getElementById("sb-email").value.trim().toLowerCase();
+    var pass = document.getElementById("sb-pass").value;
+    if (!email || !pass){ sbMsg("Escribe tu correo y contraseña.", true); return; }
+    sbMsg("Ingresando…");
+    try {
+      var r = await sbAuth("token?grant_type=password", { email: email, password: pass });
+      var d = await r.json();
+      if (!r.ok){ sbMsg(sbTraducirError(d), true); return; }
+      sbGuardarSesion(sbSesionDesdeRespuesta(d, email));
+      var ok = await sbEsAutorizado();
+      if (!ok){
+        sbGuardarSesion(null);
+        sbMsg("Tu correo no está autorizado para ver estos datos. Pídele a Freddy que te agregue.", true);
+        return;
+      }
+      sbCerrarModal();
+      document.getElementById("sb-pass").value = "";
+      showToast("Sesión iniciada. Cargando datos compartidos…");
+      await recargarDesdeFuente();
+    } catch(e){ sbMsg("Sin conexión con el servidor. Revisa tu internet.", true); }
+  }
+  async function sbRegistrar(){
+    var email = document.getElementById("sb-email").value.trim().toLowerCase();
+    var pass = document.getElementById("sb-pass").value;
+    if (!email || pass.length < 8){ sbMsg("Escribe tu correo y una contraseña de al menos 8 caracteres.", true); return; }
+    sbMsg("Creando cuenta…");
+    try {
+      var r = await sbAuth("signup", { email: email, password: pass, options: { emailRedirectTo: location.origin + location.pathname } });
+      var d = await r.json();
+      if (!r.ok){ sbMsg(sbTraducirError(d), true); return; }
+      if (d.access_token){ sbMsg("Cuenta creada. Ahora presiona Ingresar.", false); return; }
+      sbMsg("Listo. Te enviamos un correo: ábrelo, confirma tu cuenta y vuelve acá a presionar Ingresar.", false);
+    } catch(e){ sbMsg("Sin conexión con el servidor. Revisa tu internet.", true); }
+  }
+  async function sbOlvide(){
+    var email = document.getElementById("sb-email").value.trim().toLowerCase();
+    if (!email){ sbMsg("Escribe tu correo arriba y vuelve a presionar este botón.", true); return; }
+    try {
+      await sbAuth("recover", { email: email });
+      sbMsg("Si ese correo tiene cuenta, te enviamos un link para cambiar la contraseña.", false);
+    } catch(e){ sbMsg("Sin conexión con el servidor.", true); }
+  }
+  async function recargarDesdeFuente(){
+    var docs = await loadInvoices();
+    setDocs(docs);
+    pintarCamposMetas(); pintarCampoDrive(); pintarCamposEmailjs();
+    try { if (window.emailjs && state.emailjsConfig.publicKey) window.emailjs.init(state.emailjsConfig.publicKey); } catch(e){}
+    sincronizarBacklogDesdeFacturas(true);
+    renderAll();
+    renderDataSourceNote();
+    if (sbSubirAlIniciar){ sbSubirAlIniciar = false; sbPublicarDebounce(); }
+  }
+
   async function loadInvoices(){
+    if (sbActivo()){
+      try {
+        if (await sbEsAutorizado()){
+          var remotoSb = await sbCargarDatos();
+          var docsSb = remotoSb ? (Array.isArray(remotoSb) ? remotoSb : remotoSb.documentos) : null;
+          if (Array.isArray(docsSb) && docsSb.length){
+            if (!Array.isArray(remotoSb)) aplicarSharedConfig(remotoSb.config);
+            var localesSb = fromLocalStorage();
+            var finalSb = mergeDocsPreservingLocalProgress(docsSb, localesSb);
+            if (finalSb.length !== docsSb.length) sbSubirAlIniciar = true;
+            bumpFolioSeq(finalSb);
+            state.dataSource = "supabase";
+            return finalSb;
+          }
+          // La base está vacía: se siembra con lo publicado hasta ahora (facturas.json).
+          sbSubirAlIniciar = true;
+          state.sembrarSupabase = true;
+        } else {
+          sbGuardarSesion(null);
+          showToast("Tu correo no está autorizado para los datos compartidos.", { error: true, duration: 5000 });
+        }
+      } catch(e){ /* sin conexión con la base: se sigue con facturas.json / local */ }
+    }
     try {
       var res = await fetch("facturas.json", { cache: "no-store" });
       if (res.ok){
@@ -3375,7 +3605,7 @@
           if (!Array.isArray(data)) aplicarSharedConfig(data.config);
           var docsFinal = mergeDocsPreservingLocalProgress(docs, fromLocalStorage());
           bumpFolioSeq(docsFinal);
-          state.dataSource = "facturas.json";
+          state.dataSource = state.sembrarSupabase ? "supabase" : "facturas.json";
           return docsFinal;
         }
       }
@@ -3397,7 +3627,7 @@
   var AUTO_REFRESH_MS = 45000;
   function iniciarAutoRefresh(){
     setInterval(async function(){
-      if (state.dataSource !== "facturas.json") return;
+      if (state.dataSource !== "facturas.json" && state.dataSource !== "supabase") return;
       // No pisar mientras hay un formulario de edición abierto.
       if (state.editingFolio || !document.getElementById("new-invoice-form").hidden) return;
       // Tampoco pisar si hiciste un cambio hace muy poco (campo "Responsable",
@@ -3407,9 +3637,8 @@
       // pisar justo lo que acababas de guardar.
       if (dentroDeProteccion()) return;
       try {
-        var res = await fetch("facturas.json", { cache: "no-store" });
-        if (!res.ok) return;
-        var data = await res.json();
+        var data = await traerDatosRemotos();
+        if (!data) return;
         var docs = Array.isArray(data) ? data : data.documentos;
         if (!Array.isArray(docs)) return;
         if (!Array.isArray(data)) aplicarSharedConfig(data.config);
@@ -5352,6 +5581,10 @@
   // cambios quedan solo en este navegador) y avisa una sola vez con un toast.
   var _autopublishTimer = null;
   function autoPublicarCambioCompartido(){
+    if (sbActivo()){
+      sbPublicarDebounce();
+      return;
+    }
     if (state.githubConfig && state.githubConfig.owner && state.githubConfig.repo && state.githubConfig.token){
       // Si haces varios cambios muy seguidos (por ejemplo, marcar 3 facturas
       // "pagada" una tras otra), agrupamos todo en UNA sola publicación en
@@ -7879,8 +8112,24 @@
 
   document.getElementById("publish-github-btn").addEventListener("click", function(){
     guardarConfigGithubDesdeCampos();
+    if (sbActivo()){ sbPublicar(); return; }
     publishToGitHub();
   });
+  document.getElementById("sb-login-btn").addEventListener("click", function(){
+    if (sbActivo()){
+      if (confirm("¿Cerrar sesión? Dejarás de ver y guardar los datos compartidos en este navegador.")){
+        sbGuardarSesion(null);
+        state.dataSource = "local";
+        renderDataSourceNote();
+        showToast("Sesión cerrada.");
+      }
+    } else sbAbrirModal();
+  });
+  document.getElementById("sb-form").addEventListener("submit", function(e){ e.preventDefault(); sbIngresar(); });
+  document.getElementById("sb-registrar").addEventListener("click", sbRegistrar);
+  document.getElementById("sb-olvide").addEventListener("click", sbOlvide);
+  document.getElementById("sb-cancelar").addEventListener("click", sbCerrarModal);
+  pintarBotonSesion();
 
   var sidebar = document.getElementById("sidebar");
   var overlay = document.getElementById("sidebar-overlay");
@@ -7927,7 +8176,8 @@
     var note = document.getElementById("data-source-note");
     if (!note) return;
     var labels = {
-      "facturas.json": "Datos: facturas.json (cartera real del repositorio)",
+      "facturas.json": "Datos: facturas.json (solo lectura; inicia sesión para guardar cambios compartidos)",
+      "supabase": "Datos: base compartida del equipo (sesión iniciada)",
       "local": "Datos: cambios guardados en este navegador",
       "demo": "Datos: ejemplo — reemplaza facturas.json con tu cartera real"
     };
@@ -7992,6 +8242,7 @@
     renderAll();
     renderDataSourceNote();
     iniciarAutoRefresh();
+    if (sbSubirAlIniciar){ sbSubirAlIniciar = false; sbPublicarDebounce(); }
   });
 })();
 </script>
