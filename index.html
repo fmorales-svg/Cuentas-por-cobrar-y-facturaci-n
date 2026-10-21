@@ -2058,7 +2058,7 @@
     <h3>Iniciar sesión</h3>
     <p>Entra con tu correo de DMZ para ver y guardar los datos compartidos del equipo. No necesitas ningún token de GitHub.</p>
     <div class="field"><label for="sb-email">Correo</label><input type="email" id="sb-email" autocomplete="username" required placeholder="nombre@dmzconsultores.com"></div>
-    <div class="field"><label for="sb-pass">Contraseña</label><input type="password" id="sb-pass" autocomplete="current-password" required minlength="8" placeholder="Mínimo 8 caracteres"></div>
+    <div class="field"><label for="sb-pass">Contraseña</label><input type="password" id="sb-pass" autocomplete="current-password" required placeholder="Mínimo 12, con mayús., números y símbolo"></div>
     <div class="sb-row">
       <button class="btn primary small" type="submit" id="sb-ingresar">Ingresar</button>
       <button class="btn ghost small" type="button" id="sb-registrar" title="Primera vez: crea tu contraseña y confirma tu correo">Crear cuenta</button>
@@ -3513,7 +3513,9 @@
     if (m.indexOf("invalid login") >= 0) return "Correo o contraseña incorrectos.";
     if (m.indexOf("not confirmed") >= 0) return "Falta confirmar tu correo: revisa tu bandeja (y spam) y abre el link que te enviamos.";
     if (m.indexOf("already") >= 0) return "Ese correo ya tiene cuenta: usa \"Ingresar\" (o \"Olvidé mi contraseña\").";
-    if (m.indexOf("password") >= 0 && m.indexOf("characters") >= 0) return "La contraseña debe tener al menos 8 caracteres.";
+    var mLargo = m.match(/at least (\d+) characters/);
+    if (m.indexOf("password") >= 0 && mLargo) return "La contraseña debe tener al menos " + mLargo[1] + " caracteres" + (m.indexOf("each of") >= 0 || m.indexOf("lower") >= 0 || m.indexOf("upper") >= 0 ? ", y mezclar mayúsculas, minúsculas, números y símbolos." : ".");
+    if (m.indexOf("password") >= 0 && (m.indexOf("weak") >= 0 || m.indexOf("pwned") >= 0 || m.indexOf("compromised") >= 0 || m.indexOf("each of") >= 0)) return "Contraseña demasiado débil o conocida: usa 12 o más caracteres, con mayúsculas, minúsculas, números y un símbolo.";
     if (m.indexOf("rate") >= 0) return "Demasiados intentos: espera un minuto y vuelve a probar.";
     return (d && (d.msg || d.error_description || d.message)) || "No se pudo completar. Intenta de nuevo.";
   }
@@ -3542,7 +3544,7 @@
   async function sbRegistrar(){
     var email = document.getElementById("sb-email").value.trim().toLowerCase();
     var pass = document.getElementById("sb-pass").value;
-    if (!email || pass.length < 8){ sbMsg("Escribe tu correo y una contraseña de al menos 8 caracteres.", true); return; }
+    if (!email || !pass){ sbMsg("Escribe tu correo y la contraseña que quieres usar.", true); return; }
     sbMsg("Creando cuenta…");
     try {
       var r = await sbAuth("signup", { email: email, password: pass, options: { emailRedirectTo: location.origin + location.pathname } });
