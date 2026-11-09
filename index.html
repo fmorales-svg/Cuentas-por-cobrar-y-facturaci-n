@@ -5156,8 +5156,9 @@
       crossBtn.textContent = "Ver facturas →";
       crossBtn.title = "Ir a la pestaña Facturas filtrada por este cliente";
       crossBtn.addEventListener("click", function(){
-        state.query = c.rut;
-        document.getElementById("search").value = c.rut;
+        var consultaCli = (c.rut && String(c.rut).length > 3 && String(c.rut) !== "0") ? c.rut : c.razonSocial;
+        state.query = consultaCli;
+        document.getElementById("search").value = consultaCli;
         setFiltroFacturasSolo("todas");
         setView("facturas");
         renderTable();
@@ -7448,10 +7449,14 @@
     setView("facturas");
     renderTable();
   }
-  function jumpToCliente(rut){
+  function jumpToCliente(rut, nombre){
+    // Hay clientes sin RUT (RUT "0" o vacío, p. ej. los de Presupuesto): con ese RUT se
+    // buscaba "0" y salían facturas de otros clientes. En ese caso se busca por nombre.
+    var rutOk = rut && String(rut).length > 3 && String(rut) !== "0";
+    var consulta = rutOk ? rut : (nombre || rut);
     if (state.view === "cobranza"){
-      state.queryCobranza = rut;
-      document.getElementById("search-cobranza").value = rut;
+      state.queryCobranza = consulta;
+      document.getElementById("search-cobranza").value = consulta;
       renderCobranza();
       return;
     }
@@ -7460,7 +7465,11 @@
     // cliente estando parado en Clientes) y resalta/enfoca su fila.
     if (state.view === "clientes"){
       renderClientes();
-      var row = document.querySelector('#clientes-body tr[data-cliente-rut="' + rut.replace(/"/g, '\\"') + '"]');
+      var row = null;
+      document.querySelectorAll("#clientes-body tr[data-cliente-rut]").forEach(function(tr){
+        var nm = tr.querySelector(".client-name");
+        if (!row && tr.getAttribute("data-cliente-rut") === String(rut) && (!nombre || (nm && nm.textContent === nombre))) row = tr;
+      });
       if (row){
         row.scrollIntoView({ behavior: "smooth", block: "center" });
         row.classList.add("row-highlight");
@@ -7470,8 +7479,8 @@
       }
       return;
     }
-    state.query = rut;
-    document.getElementById("search").value = rut;
+    state.query = consulta;
+    document.getElementById("search").value = consulta;
     setFiltroFacturasSolo("todas");
     setView("facturas");
     renderTable();
@@ -7502,14 +7511,14 @@
       return;
     }
     var html = clienteMatches.map(function(f){
-      return '<button type="button" class="gsr-item" data-jump-cliente="' + f.rut + '">' +
+      return '<button type="button" class="gsr-item" data-jump-cliente="' + f.rut + '" data-jump-nombre="' + String(f.razonSocial || "").replace(/"/g, "&quot;") + '">' +
         '<div class="t1">👤 ' + f.razonSocial + '</div><div class="t2">' + f.rut + '</div></button>';
     }).join("");
     globalSearchResults.innerHTML = html;
     globalSearchResults.hidden = false;
     globalSearchResults.querySelectorAll("[data-jump-cliente]").forEach(function(btn){
       btn.addEventListener("click", function(){
-        jumpToCliente(btn.getAttribute("data-jump-cliente"));
+        jumpToCliente(btn.getAttribute("data-jump-cliente"), btn.getAttribute("data-jump-nombre"));
         globalSearchResults.hidden = true;
         globalSearchInput.value = "";
       });
